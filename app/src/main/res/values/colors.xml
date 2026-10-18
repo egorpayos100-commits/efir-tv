@@ -7,6 +7,7 @@
     <color name="text_muted">#FF9AA4B4</color>
     <color name="text_shadow">#CC000000</color>
     <color name="accent">#FF4F8CFF</color>
+    <color name="accent_soft">#334F8CFF</color>
     <color name="rail_label">#FFB7C0CF</color>
     <color name="rail_tile_bg">#FF1A2130</color>
     <color name="row_bg_focused">#FF22304D</color>

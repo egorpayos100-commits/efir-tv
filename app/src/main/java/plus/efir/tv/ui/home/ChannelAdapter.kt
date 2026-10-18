@@ -13,16 +13,25 @@ import plus.efir.tv.player.LogoLoader
 class ChannelAdapter(
     private val onFocused: (Channel) -> Unit,
     private val onOpened: (Channel) -> Unit,
+    private val onFlag: (Channel) -> Unit,
     private val isFavorite: (Channel) -> Boolean,
 ) : RecyclerView.Adapter<ChannelAdapter.Holder>() {
 
     private var items: List<Channel> = emptyList()
     private var list: RecyclerView? = null
     private var pendingFocus = -1
+    private var pendingFlag = -1
+
+    /** Row whose flag holds focus, -1 otherwise. The activity steers arrows with it. */
+    var flagPosition = -1
+        private set
+
+    fun isFlagFocused() = flagPosition >= 0
 
     fun submit(next: List<Channel>) {
         items = next
         pendingFocus = -1
+        pendingFlag = -1
         notifyDataSetChanged()
     }
 
@@ -37,6 +46,17 @@ class ChannelAdapter(
         }
     }
 
+    fun requestFlagFocusAt(position: Int) {
+        if (position !in items.indices) return
+        val existing = list?.findViewHolderForAdapterPosition(position) as? Holder
+        if (existing != null) {
+            existing.star.requestFocus()
+        } else {
+            pendingFlag = position
+            list?.scrollToPosition(position)
+        }
+    }
+
     override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
         list = recyclerView
     }
@@ -47,7 +67,10 @@ class ChannelAdapter(
 
     override fun onViewAttachedToWindow(holder: Holder) {
         val position = holder.bindingAdapterPosition
-        if (position == pendingFocus) {
+        if (position == pendingFlag) {
+            pendingFlag = -1
+            holder.star.requestFocus()
+        } else if (position == pendingFocus) {
             pendingFocus = -1
             holder.itemView.requestFocus()
         }
@@ -66,7 +89,7 @@ class ChannelAdapter(
         val logo: ImageView = view.findViewById(R.id.row_logo)
         private val name: TextView = view.findViewById(R.id.row_name)
         private val meta: TextView = view.findViewById(R.id.row_meta)
-        private val star: TextView = view.findViewById(R.id.row_star)
+        val star: TextView = view.findViewById(R.id.row_star)
         private val mark: View = view.findViewById(R.id.row_mark)
 
         init {
@@ -78,12 +101,21 @@ class ChannelAdapter(
             itemView.setOnClickListener {
                 if (bindingAdapterPosition >= 0) onOpened(items[bindingAdapterPosition])
             }
+            star.setOnClickListener {
+                if (bindingAdapterPosition >= 0) onFlag(items[bindingAdapterPosition])
+            }
+            star.setOnFocusChangeListener { _, focused ->
+                if (focused) flagPosition = bindingAdapterPosition
+                else if (flagPosition == bindingAdapterPosition) flagPosition = -1
+            }
         }
 
         fun bind(channel: Channel) {
             num.text = channel.number.toString()
             name.text = channel.name
-            star.visibility = if (isFavorite(channel)) View.VISIBLE else View.INVISIBLE
+            val favorite = isFavorite(channel)
+            star.isSelected = favorite
+            star.setText(if (favorite) R.string.favorite_on else R.string.favorite_off)
             meta.text = if (channel.sources.size > 1) {
                 "${channel.group} · ${channel.sources.size} источника"
             } else {

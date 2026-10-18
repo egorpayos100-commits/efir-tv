@@ -72,14 +72,6 @@ class HomeActivity : FragmentActivity() {
     private val hideRunnable = Runnable { setOverlay(false) }
     private val hideToastRunnable = Runnable { toastView.visibility = View.GONE }
 
-    /** Holding OK on a row marks a favourite; the matching UP is then swallowed so fullscreen does not open. */
-    private val favoriteToggle = object : Runnable {
-        var fired = false
-        override fun run() {
-            fired = true
-            current()?.let { toggleFavorite(it) }
-        }
-    }
     private val epgTicker = object : Runnable {
         override fun run() {
             refreshEpgPane()
@@ -134,6 +126,7 @@ class HomeActivity : FragmentActivity() {
         channelAdapter = ChannelAdapter(
             onFocused = { channel -> onRowFocused(channel) },
             onOpened = { enterFullscreen() },
+            onFlag = { channel -> toggleFavorite(channel, fromFlag = true) },
             isFavorite = { channel -> favorites.contains(channel.key) },
         )
         rail.adapter = railAdapter
@@ -164,14 +157,12 @@ class HomeActivity : FragmentActivity() {
         super.onStop()
         ui.removeCallbacks(zapRunnable)
         ui.removeCallbacks(epgTicker)
-        ui.removeCallbacks(favoriteToggle)
         tuner.stop()
     }
 
     override fun onDestroy() {
         ui.removeCallbacks(zapRunnable)
         ui.removeCallbacks(hideRunnable)
-        ui.removeCallbacks(favoriteToggle)
         epg.onLoaded = null
         tuner.release()
         super.onDestroy()
@@ -248,7 +239,7 @@ class HomeActivity : FragmentActivity() {
         channelAdapter.submit(category.channels)
     }
 
-    private fun toggleFavorite(channel: Channel) {
+    private fun toggleFavorite(channel: Channel, fromFlag: Boolean = false) {
         val added = !favorites.remove(channel.key)
         if (added) favorites.add(channel.key)
         prefs().edit().putString(FAVORITES_KEY, favorites.joinToString(",")).apply()
@@ -259,7 +250,13 @@ class HomeActivity : FragmentActivity() {
         buildCategories()
         showCategory(categoryIndex, channel.key)
         channelList.requestFocus()
-        channelAdapter.requestFocusAt(channelIndex)
+        // Un-favouriting inside the "Избранные" tab removes the row, so only the flag that is
+        // still on screen can keep focus.
+        if (fromFlag && current()?.key == channel.key) {
+            channelAdapter.requestFlagFocusAt(channelIndex)
+        } else {
+            channelAdapter.requestFocusAt(channelIndex)
+        }
     }
 
     /** Move the selection to an arbitrary channel, switching the visible category if needed. */
@@ -440,12 +437,6 @@ class HomeActivity : FragmentActivity() {
     // endregion
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (event.action == KeyEvent.ACTION_UP && isSelectKey(event.keyCode)) {
-            ui.removeCallbacks(favoriteToggle)
-            val longPress = favoriteToggle.fired
-            favoriteToggle.fired = false
-            if (longPress) return true
-        }
         if (event.action != KeyEvent.ACTION_DOWN) return super.dispatchKeyEvent(event)
 
         if (mode == Mode.FULLSCREEN) {
@@ -466,39 +457,42 @@ class HomeActivity : FragmentActivity() {
         }
 
         when (event.keyCode) {
-            KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                if (channelList.hasFocus()) {
-                    enterFullscreen()
+            KeyEvent.KEYCODE_DPAD_RIGHT -> when {
+                channelAdapter.isFlagFocused() -> return true
+                channelList.hasFocus() -> {
+                    channelAdapter.requestFlagFocusAt(channelIndex)
                     return true
                 }
-                if (rail.hasFocus()) {
+                rail.hasFocus() -> {
                     channelList.requestFocus()
                     channelAdapter.requestFocusAt(channelIndex)
                     return true
                 }
             }
-            KeyEvent.KEYCODE_DPAD_LEFT -> if (channelList.hasFocus()) {
-                rail.requestFocus()
-                railAdapter.requestFocusAt(categoryIndex)
+            KeyEvent.KEYCODE_DPAD_LEFT -> when {
+                channelAdapter.isFlagFocused() -> {
+                    channelAdapter.requestFocusAt(channelAdapter.flagPosition)
+                    return true
+                }
+                channelList.hasFocus() -> {
+                    rail.requestFocus()
+                    railAdapter.requestFocusAt(categoryIndex)
+                    return true
+                }
+            }
+            // From a flag, arrows step back onto the rows so zapping keeps following the selection.
+            KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> if (channelAdapter.isFlagFocused()) {
+                val step = if (event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN) 1 else -1
+                val target = (channelAdapter.flagPosition + step).coerceIn(0, channelAdapter.itemCount - 1)
+                channelAdapter.requestFocusAt(target)
                 return true
             }
-            KeyEvent.KEYCODE_DPAD_CENTER,
-            KeyEvent.KEYCODE_ENTER,
-            KeyEvent.KEYCODE_NUMPAD_ENTER -> if (channelList.hasFocus() && event.repeatCount == 0) {
-                favoriteToggle.fired = false
-                ui.postDelayed(favoriteToggle, LONG_PRESS_MS)
-            }
-            KeyEvent.KEYCODE_MENU -> if (channelList.hasFocus()) {
+            KeyEvent.KEYCODE_MENU -> if (channelList.hasFocus() && !channelAdapter.isFlagFocused()) {
                 current()?.let { toggleFavorite(it) }
                 return true
             }
         }
         return super.dispatchKeyEvent(event)
-    }
-
-    private fun isSelectKey(keyCode: Int) = when (keyCode) {
-        KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> true
-        else -> false
     }
 
     private fun toggleOverlay() {
@@ -513,7 +507,6 @@ class HomeActivity : FragmentActivity() {
         private const val ZAP_DEBOUNCE_MS = 420L
         private const val OVERLAY_TIMEOUT_MS = 4000L
         private const val TOAST_MS = 3500L
-        private const val LONG_PRESS_MS = 550L
         private const val EPG_TICK_MS = 15_000L
         private const val GUIDE_RESERVE_DP = 116f
         private const val GUIDE_WIDTH_DP = 420f

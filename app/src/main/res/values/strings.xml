@@ -3,9 +3,11 @@
     <string name="app_name">Эфир+</string>
     <string name="all_channels">Все</string>
     <string name="favorites">★ Избранные</string>
-    <string name="favorite_mark">★</string>
-    <string name="hint_browse">↑↓ — переключить · ОК — на весь экран · долгая ОК — в избранное · ← — категории · Назад — выйти</string>
-    <string name="hint_favorites">Пусто: держи ОК на любом канале, чтобы добавить его сюда</string>
+    <string name="favorite_on">★</string>
+    <string name="favorite_off">☆</string>
+    <string name="favorite_label">В избранное</string>
+    <string name="hint_browse">↑↓ — канал · ОК — на весь экран · → — флажок ★ · ← — категории · Назад — выйти</string>
+    <string name="hint_favorites">Пусто: на любом канале нажми → и ОК на флажке</string>
     <string name="added_favorite">Добавлено в избранные</string>
     <string name="removed_favorite">Убрано из избранных</string>
     <string name="hint_fullscreen">ОК — скрыть подсказку · Назад — к списку</string>
