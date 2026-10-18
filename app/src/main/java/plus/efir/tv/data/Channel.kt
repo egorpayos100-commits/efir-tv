@@ -22,6 +22,8 @@ data class Channel(
     val logoUrl: String?,
     val sources: List<Source>,
     val number: Int = 0,
+    /** Channel id inside the XMLTV guide, unrelated to `key`. */
+    val epgId: String? = null,
 ) {
     val isLiveSource: Boolean get() = sources.isNotEmpty()
 

@@ -7,6 +7,7 @@ internal class Draft {
     var name: String = ""
     var group: String = "Каналы"
     var logo: String? = null
+    var epgId: String? = null
     var userAgent: String? = null
     var referrer: String? = null
 }
@@ -39,7 +40,7 @@ object M3uParser {
                 val source = Source(line, d.userAgent, d.referrer)
                 val existing = merged[key]
                 merged[key] = if (existing == null) {
-                    Channel(key, d.name, d.group, d.logo, listOf(source))
+                    Channel(key, d.name, d.group, d.logo, listOf(source), epgId = d.epgId)
                 } else if (existing.sources.any { it.url == source.url }) {
                     existing
                 } else {
@@ -60,6 +61,7 @@ object M3uParser {
             when (m.groupValues[1]) {
                 "tvg-id", "channel-id", "tvg-name" -> if (d.id == null) d.id = m.groupValues[2]
                 "tvg-logo", "logo" -> d.logo = m.groupValues[2]
+                "epg-id" -> d.epgId = m.groupValues[2]
                 "group-title" -> d.group = m.groupValues[2].ifBlank { d.group }
             }
         }

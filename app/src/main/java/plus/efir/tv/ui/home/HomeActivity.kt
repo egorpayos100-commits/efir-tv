@@ -21,11 +21,20 @@ import androidx.recyclerview.widget.RecyclerView
 import plus.efir.tv.EfirApp
 import plus.efir.tv.R
 import plus.efir.tv.data.Channel
+import plus.efir.tv.data.EpgGuide
+import plus.efir.tv.data.Programme
+import plus.efir.tv.data.Slots
 import plus.efir.tv.player.Tuner
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class HomeActivity : FragmentActivity() {
 
     private enum class Mode { PREVIEW, FULLSCREEN }
+
+    /** One line of the guide: start time + programme name. */
+    private class Row(val root: View, val time: TextView, val title: TextView)
 
     private lateinit var root: FrameLayout
     private lateinit var playerView: PlayerView
@@ -38,21 +47,35 @@ class HomeActivity : FragmentActivity() {
     private lateinit var fullStatus: TextView
     private lateinit var fullHint: View
     private lateinit var toastView: TextView
+    private lateinit var epgPane: LinearLayout
+    private lateinit var epgRows: List<Row>
+    private lateinit var epgProgress: View
+    private lateinit var epgProgressFill: View
 
     private lateinit var tuner: Tuner
+    private lateinit var epg: EpgGuide
     private lateinit var railAdapter: RailAdapter
     private lateinit var channelAdapter: ChannelAdapter
 
     private var categories: List<Category> = emptyList()
     private var allChannels: List<Channel> = emptyList()
+    private var epgIds: Set<String> = emptySet()
     private var categoryIndex = 0
     private var channelIndex = 0
     private var mode = Mode.PREVIEW
 
     private val ui = Handler(Looper.getMainLooper())
+    private val clock = SimpleDateFormat("HH:mm", Locale.getDefault())
     private val zapRunnable = Runnable { tuneNow() }
     private val hideRunnable = Runnable { setOverlay(false) }
     private val hideToastRunnable = Runnable { toastView.visibility = View.GONE }
+    private val epgTicker = object : Runnable {
+        override fun run() {
+            refreshEpgPane()
+            epg.refresh(epgIds)
+            ui.postDelayed(this, EPG_TICK_MS)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -69,6 +92,15 @@ class HomeActivity : FragmentActivity() {
         fullStatus = findViewById(R.id.full_status)
         fullHint = findViewById(R.id.full_hint)
         toastView = findViewById(R.id.toast)
+        epgPane = findViewById(R.id.epg_pane)
+        epgRows = listOf(
+            Row(findViewById(R.id.epg_prev), findViewById(R.id.epg_prev_time), findViewById(R.id.epg_prev_title)),
+            Row(findViewById(R.id.epg_now), findViewById(R.id.epg_now_time), findViewById(R.id.epg_now_title)),
+            Row(findViewById(R.id.epg_next), findViewById(R.id.epg_next_time), findViewById(R.id.epg_next_title)),
+        )
+        epgProgress = findViewById(R.id.epg_progress)
+        epgProgressFill = findViewById(R.id.epg_progress_fill)
+        epgProgressFill.pivotX = 0f
 
         playerView.outlineProvider = RoundedOutline()
         playerView.clipToOutline = true
@@ -77,6 +109,9 @@ class HomeActivity : FragmentActivity() {
         playerView.player = tuner.player
         tuner.onState = { renderStatus() }
         tuner.onEvent = { title, message -> toast(title, message) }
+
+        epg = (applicationContext as EfirApp).epg
+        epg.onLoaded = { refreshEpgPane() }
 
         buildCategories()
 
@@ -108,17 +143,20 @@ class HomeActivity : FragmentActivity() {
     override fun onStart() {
         super.onStart()
         if (tuner.channel != null) tuneNow()
+        ui.post(epgTicker)
     }
 
     override fun onStop() {
         super.onStop()
         ui.removeCallbacks(zapRunnable)
+        ui.removeCallbacks(epgTicker)
         tuner.stop()
     }
 
     override fun onDestroy() {
         ui.removeCallbacks(zapRunnable)
         ui.removeCallbacks(hideRunnable)
+        epg.onLoaded = null
         tuner.release()
         super.onDestroy()
     }
@@ -128,6 +166,7 @@ class HomeActivity : FragmentActivity() {
     private fun buildCategories() {
         val repo = (applicationContext as EfirApp).repository
         allChannels = repo.channels()
+        epgIds = allChannels.mapNotNull { it.epgId }.toSet()
         val groups = repo.byGroup().map { (title, channels) -> Category(title, channels) }
         categories = if (allChannels.isEmpty()) emptyList()
         else listOf(Category(getString(R.string.all_channels), allChannels)) + groups
@@ -210,22 +249,51 @@ class HomeActivity : FragmentActivity() {
         if (width == 0 || height == 0 || mode == Mode.FULLSCREEN) return
 
         val gutter = dp(32f)
+        val gap = dp(12f)
+        val reserve = dp(GUIDE_RESERVE_DP)
+        val usable = height - gutter * 2
         var previewWidth = (width * PREVIEW_SHARE).toInt()
         var previewHeight = (previewWidth * 9f / 16f).toInt()
-        val maxHeight = height - gutter * 2
+        val maxHeight = usable - gap - reserve
         if (previewHeight > maxHeight) {
-            previewHeight = maxHeight
+            previewHeight = maxHeight.coerceAtLeast(dp(140f))
             previewWidth = (previewHeight * 16f / 9f).toInt()
         }
+        val top = gutter + ((usable - previewHeight - gap - reserve).coerceAtLeast(0) / 2)
 
         playerView.updateLayoutParams<FrameLayout.LayoutParams> {
             this.width = previewWidth
             this.height = previewHeight
             gravity = Gravity.END or Gravity.TOP
+            leftMargin = 0
             rightMargin = gutter
-            topMargin = (height - previewHeight) / 2
+            topMargin = top
+            bottomMargin = 0
+        }
+        epgPane.updateLayoutParams<FrameLayout.LayoutParams> {
+            this.width = previewWidth
+            this.height = ViewGroup.LayoutParams.WRAP_CONTENT
+            gravity = Gravity.END or Gravity.TOP
+            leftMargin = 0
+            rightMargin = gutter
+            topMargin = top + previewHeight + gap
+            bottomMargin = 0
         }
         browsePane.setPadding(gutter, gutter, previewWidth + gutter * 2, gutter)
+    }
+
+    /** In fullscreen the same panel becomes a lower-third over the picture. */
+    private fun placeEpgOverPicture() {
+        val gutter = dp(32f)
+        epgPane.updateLayoutParams<FrameLayout.LayoutParams> {
+            this.width = dp(GUIDE_WIDTH_DP)
+            this.height = ViewGroup.LayoutParams.WRAP_CONTENT
+            gravity = Gravity.START or Gravity.BOTTOM
+            leftMargin = gutter
+            topMargin = 0
+            rightMargin = 0
+            bottomMargin = gutter
+        }
     }
 
     private fun enterFullscreen() {
@@ -243,6 +311,7 @@ class HomeActivity : FragmentActivity() {
             rightMargin = 0
             topMargin = 0
         }
+        placeEpgOverPicture()
         renderStatus()
         setOverlay(true)
     }
@@ -254,12 +323,14 @@ class HomeActivity : FragmentActivity() {
         browsePane.visibility = View.VISIBLE
         browsePane.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
         applyGeometry()
+        refreshEpgPane()
         channelList.requestFocus()
         channelAdapter.requestFocusAt(channelIndex)
     }
 
     private fun setOverlay(visible: Boolean) {
         fullOverlay.visibility = if (visible) View.VISIBLE else View.INVISIBLE
+        refreshEpgPane()
         ui.removeCallbacks(hideRunnable)
         if (visible) ui.postDelayed(hideRunnable, OVERLAY_TIMEOUT_MS)
     }
@@ -268,11 +339,43 @@ class HomeActivity : FragmentActivity() {
         val channel = tuner.channel ?: current() ?: run {
             fullTitle.text = getString(R.string.empty_playlist)
             fullStatus.text = ""
+            refreshEpgPane()
             return
         }
         fullTitle.text = "${channel.number}. ${channel.name}"
         fullStatus.text = tuner.statusLine
+        refreshEpgPane()
     }
+
+    // region programme guide
+
+    private fun refreshEpgPane() {
+        val slots = epg.slots((tuner.channel ?: current())?.epgId, System.currentTimeMillis())
+        if (slots.isEmpty) {
+            epgPane.visibility = View.GONE
+            return
+        }
+        paint(slots)
+        val hiddenByOverlay = mode == Mode.FULLSCREEN && fullOverlay.visibility != View.VISIBLE
+        epgPane.visibility = if (hiddenByOverlay) View.INVISIBLE else View.VISIBLE
+    }
+
+    private fun paint(slots: Slots) {
+        val alphas = floatArrayOf(PREV_ALPHA, 1f, NEXT_ALPHA)
+        val items = listOf(slots.prev, slots.now, slots.next)
+        items.forEachIndexed { index, item -> bind(epgRows[index], item, alphas[index]) }
+        epgProgress.visibility = if (slots.now == null) View.INVISIBLE else View.VISIBLE
+        epgProgressFill.scaleX = slots.elapsedFraction(System.currentTimeMillis())
+    }
+
+    private fun bind(row: Row, item: Programme?, alpha: Float) {
+        row.root.alpha = alpha
+        row.root.visibility = if (item == null) View.INVISIBLE else View.VISIBLE
+        row.time.text = item?.let { clock.format(Date(it.start)) } ?: ""
+        row.title.text = item?.title ?: ""
+    }
+
+    // endregion
 
     private fun toast(title: String, message: String) {
         toastView.text = "$title · $message"
@@ -344,5 +447,10 @@ class HomeActivity : FragmentActivity() {
         private const val ZAP_DEBOUNCE_MS = 420L
         private const val OVERLAY_TIMEOUT_MS = 4000L
         private const val TOAST_MS = 3500L
+        private const val EPG_TICK_MS = 15_000L
+        private const val GUIDE_RESERVE_DP = 116f
+        private const val GUIDE_WIDTH_DP = 420f
+        private const val PREV_ALPHA = 0.35f
+        private const val NEXT_ALPHA = 0.55f
     }
 }

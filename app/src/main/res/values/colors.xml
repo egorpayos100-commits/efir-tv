@@ -17,4 +17,6 @@
     <color name="overlay_head">#E606080C</color>
     <color name="overlay_bottom">#E606080C</color>
     <color name="toast_bg">#F20C0F16</color>
+    <color name="epg_panel">#E60C0F16</color>
+    <color name="epg_track">#26FFFFFF</color>
 </resources>
