@@ -47,6 +47,7 @@ class HomeActivity : FragmentActivity() {
     private lateinit var fullStatus: TextView
     private lateinit var fullHint: View
     private lateinit var toastView: TextView
+    private lateinit var hintBar: TextView
     private lateinit var epgPane: LinearLayout
     private lateinit var epgRows: List<Row>
     private lateinit var epgProgress: View
@@ -60,6 +61,7 @@ class HomeActivity : FragmentActivity() {
     private var categories: List<Category> = emptyList()
     private var allChannels: List<Channel> = emptyList()
     private var epgIds: Set<String> = emptySet()
+    private var favorites: MutableList<String> = mutableListOf()
     private var categoryIndex = 0
     private var channelIndex = 0
     private var mode = Mode.PREVIEW
@@ -69,6 +71,15 @@ class HomeActivity : FragmentActivity() {
     private val zapRunnable = Runnable { tuneNow() }
     private val hideRunnable = Runnable { setOverlay(false) }
     private val hideToastRunnable = Runnable { toastView.visibility = View.GONE }
+
+    /** Holding OK on a row marks a favourite; the matching UP is then swallowed so fullscreen does not open. */
+    private val favoriteToggle = object : Runnable {
+        var fired = false
+        override fun run() {
+            fired = true
+            current()?.let { toggleFavorite(it) }
+        }
+    }
     private val epgTicker = object : Runnable {
         override fun run() {
             refreshEpgPane()
@@ -92,6 +103,7 @@ class HomeActivity : FragmentActivity() {
         fullStatus = findViewById(R.id.full_status)
         fullHint = findViewById(R.id.full_hint)
         toastView = findViewById(R.id.toast)
+        hintBar = findViewById(R.id.hint_bar)
         epgPane = findViewById(R.id.epg_pane)
         epgRows = listOf(
             Row(findViewById(R.id.epg_prev), findViewById(R.id.epg_prev_time), findViewById(R.id.epg_prev_title)),
@@ -113,6 +125,7 @@ class HomeActivity : FragmentActivity() {
         epg = (applicationContext as EfirApp).epg
         epg.onLoaded = { refreshEpgPane() }
 
+        favorites = loadFavorites()
         buildCategories()
 
         rail.layoutManager = LinearLayoutManager(this)
@@ -121,6 +134,7 @@ class HomeActivity : FragmentActivity() {
         channelAdapter = ChannelAdapter(
             onFocused = { channel -> onRowFocused(channel) },
             onOpened = { enterFullscreen() },
+            isFavorite = { channel -> favorites.contains(channel.key) },
         )
         rail.adapter = railAdapter
         channelList.adapter = channelAdapter
@@ -150,12 +164,14 @@ class HomeActivity : FragmentActivity() {
         super.onStop()
         ui.removeCallbacks(zapRunnable)
         ui.removeCallbacks(epgTicker)
+        ui.removeCallbacks(favoriteToggle)
         tuner.stop()
     }
 
     override fun onDestroy() {
         ui.removeCallbacks(zapRunnable)
         ui.removeCallbacks(hideRunnable)
+        ui.removeCallbacks(favoriteToggle)
         epg.onLoaded = null
         tuner.release()
         super.onDestroy()
@@ -167,9 +183,29 @@ class HomeActivity : FragmentActivity() {
         val repo = (applicationContext as EfirApp).repository
         allChannels = repo.channels()
         epgIds = allChannels.mapNotNull { it.epgId }.toSet()
+        if (allChannels.isEmpty()) {
+            categories = emptyList()
+            return
+        }
+        val favourites = Category(getString(R.string.favorites), favouriteChannels())
         val groups = repo.byGroup().map { (title, channels) -> Category(title, channels) }
-        categories = if (allChannels.isEmpty()) emptyList()
-        else listOf(Category(getString(R.string.all_channels), allChannels)) + groups
+        categories = listOf(Category(getString(R.string.all_channels), allChannels), favourites) + groups
+    }
+
+    /** Follows the order they were added, not the playlist order. */
+    private fun favouriteChannels(): List<Channel> =
+        favorites.mapNotNull { key -> allChannels.firstOrNull { it.key == key } }
+
+    private fun loadFavorites(): MutableList<String> =
+        prefs().getString(FAVORITES_KEY, "")?.split(',')
+            ?.map { it.trim() }?.filter { it.isNotEmpty() }?.toMutableList() ?: mutableListOf()
+
+    /** Prefer the real group over the "Все" and "Избранные" catch-alls so the list opens where the channel lives. */
+    private fun categoryOf(channel: Channel): Int {
+        val match = categories.withIndex().firstOrNull { (position, category) ->
+            position > FAVORITES_INDEX && category.channels.any { it.key == channel.key }
+        }
+        return match?.index ?: 0
     }
 
     private fun restoreLastChannel() {
@@ -177,14 +213,6 @@ class HomeActivity : FragmentActivity() {
         val last = allChannels.firstOrNull { it.key == lastKey } ?: allChannels.firstOrNull() ?: return
         categoryIndex = categoryOf(last)
         channelIndex = categories[categoryIndex].channels.indexOfFirst { it.key == last.key }.coerceAtLeast(0)
-    }
-
-    /** Prefer the real group over the "Все" catch-all so the list opens where the channel lives. */
-    private fun categoryOf(channel: Channel): Int {
-        val match = categories.withIndex().firstOrNull { (position, category) ->
-            position > 0 && category.channels.any { it.key == channel.key }
-        }
-        return match?.index ?: 0
     }
 
     private fun onRowFocused(channel: Channel) {
@@ -206,17 +234,32 @@ class HomeActivity : FragmentActivity() {
     private fun current(): Channel? =
         categories.getOrNull(categoryIndex)?.channels?.getOrNull(channelIndex)
 
-    private fun showCategory(index: Int) {
+    private fun showCategory(index: Int, keepKey: String? = current()?.key) {
         if (categories.isEmpty()) {
             paneTitle.text = getString(R.string.empty_playlist)
             return
         }
-        val keepKey = current()?.key
         categoryIndex = index.coerceIn(0, categories.lastIndex)
         val category = categories[categoryIndex]
         paneTitle.text = "${category.title} · ${category.channels.size}"
         channelIndex = category.channels.indexOfFirst { it.key == keepKey }.coerceAtLeast(0)
+        hintBar.text = if (categoryIndex == FAVORITES_INDEX && category.channels.isEmpty())
+            getString(R.string.hint_favorites) else getString(R.string.hint_browse)
         channelAdapter.submit(category.channels)
+    }
+
+    private fun toggleFavorite(channel: Channel) {
+        val added = !favorites.remove(channel.key)
+        if (added) favorites.add(channel.key)
+        prefs().edit().putString(FAVORITES_KEY, favorites.joinToString(",")).apply()
+        toast(
+            channel.name,
+            getString(if (added) R.string.added_favorite else R.string.removed_favorite)
+        )
+        buildCategories()
+        showCategory(categoryIndex, channel.key)
+        channelList.requestFocus()
+        channelAdapter.requestFocusAt(channelIndex)
     }
 
     /** Move the selection to an arbitrary channel, switching the visible category if needed. */
@@ -397,6 +440,12 @@ class HomeActivity : FragmentActivity() {
     // endregion
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.action == KeyEvent.ACTION_UP && isSelectKey(event.keyCode)) {
+            ui.removeCallbacks(favoriteToggle)
+            val longPress = favoriteToggle.fired
+            favoriteToggle.fired = false
+            if (longPress) return true
+        }
         if (event.action != KeyEvent.ACTION_DOWN) return super.dispatchKeyEvent(event)
 
         if (mode == Mode.FULLSCREEN) {
@@ -433,8 +482,23 @@ class HomeActivity : FragmentActivity() {
                 railAdapter.requestFocusAt(categoryIndex)
                 return true
             }
+            KeyEvent.KEYCODE_DPAD_CENTER,
+            KeyEvent.KEYCODE_ENTER,
+            KeyEvent.KEYCODE_NUMPAD_ENTER -> if (channelList.hasFocus() && event.repeatCount == 0) {
+                favoriteToggle.fired = false
+                ui.postDelayed(favoriteToggle, LONG_PRESS_MS)
+            }
+            KeyEvent.KEYCODE_MENU -> if (channelList.hasFocus()) {
+                current()?.let { toggleFavorite(it) }
+                return true
+            }
         }
         return super.dispatchKeyEvent(event)
+    }
+
+    private fun isSelectKey(keyCode: Int) = when (keyCode) {
+        KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> true
+        else -> false
     }
 
     private fun toggleOverlay() {
@@ -443,10 +507,13 @@ class HomeActivity : FragmentActivity() {
 
     companion object {
         private const val LAST_KEY = "last_channel"
+        private const val FAVORITES_KEY = "favorites"
+        private const val FAVORITES_INDEX = 1
         private const val PREVIEW_SHARE = 0.42f
         private const val ZAP_DEBOUNCE_MS = 420L
         private const val OVERLAY_TIMEOUT_MS = 4000L
         private const val TOAST_MS = 3500L
+        private const val LONG_PRESS_MS = 550L
         private const val EPG_TICK_MS = 15_000L
         private const val GUIDE_RESERVE_DP = 116f
         private const val GUIDE_WIDTH_DP = 420f

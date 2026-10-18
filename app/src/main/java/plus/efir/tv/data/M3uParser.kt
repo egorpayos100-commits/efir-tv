@@ -14,6 +14,9 @@ internal class Draft {
 
 object M3uParser {
 
+    /** The guide host serves the channel's own logo under the same id as its programme. */
+    private const val PICON = "http://epg.one/img2/"
+
     fun parse(text: String): List<Channel> {
         val merged = LinkedHashMap<String, Channel>()
         var draft: Draft? = null
@@ -66,6 +69,7 @@ object M3uParser {
             }
         }
         if (d.name.isBlank()) d.name = d.id.orEmpty()
+        if (d.logo.isNullOrBlank()) d.logo = d.epgId?.let { "$PICON$it.png" }
         return d
     }
 

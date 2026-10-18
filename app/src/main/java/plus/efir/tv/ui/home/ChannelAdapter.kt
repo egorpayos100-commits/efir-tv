@@ -13,6 +13,7 @@ import plus.efir.tv.player.LogoLoader
 class ChannelAdapter(
     private val onFocused: (Channel) -> Unit,
     private val onOpened: (Channel) -> Unit,
+    private val isFavorite: (Channel) -> Boolean,
 ) : RecyclerView.Adapter<ChannelAdapter.Holder>() {
 
     private var items: List<Channel> = emptyList()
@@ -65,6 +66,7 @@ class ChannelAdapter(
         val logo: ImageView = view.findViewById(R.id.row_logo)
         private val name: TextView = view.findViewById(R.id.row_name)
         private val meta: TextView = view.findViewById(R.id.row_meta)
+        private val star: TextView = view.findViewById(R.id.row_star)
         private val mark: View = view.findViewById(R.id.row_mark)
 
         init {
@@ -81,6 +83,7 @@ class ChannelAdapter(
         fun bind(channel: Channel) {
             num.text = channel.number.toString()
             name.text = channel.name
+            star.visibility = if (isFavorite(channel)) View.VISIBLE else View.INVISIBLE
             meta.text = if (channel.sources.size > 1) {
                 "${channel.group} · ${channel.sources.size} источника"
             } else {
