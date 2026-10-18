@@ -18,7 +18,8 @@ class ChannelRepository(private val context: Context) {
         val text = listOf(PREFERS, FALLBACK).firstNotNullOfOrNull { name ->
             runCatching { context.assets.open(name).bufferedReader().use { it.readText() } }.getOrNull()
         } ?: return emptyList()
-        return M3uParser.parse(text)
+        // Playlist order is the channel numbering the viewer expects, so numbers follow it.
+        return M3uParser.parse(text).mapIndexed { index, channel -> channel.copy(number = index + 1) }
     }
 
     fun reload() { cached = null }

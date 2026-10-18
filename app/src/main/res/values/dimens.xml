@@ -4,4 +4,9 @@
     <dimen name="card_image_height">106dp</dimen>
     <dimen name="chip_width">150dp</dimen>
     <dimen name="watch_gutter">40dp</dimen>
+    <dimen name="gutter">32dp</dimen>
+    <dimen name="gutter_half">14dp</dimen>
+    <dimen name="rail_width">104dp</dimen>
+    <dimen name="rail_tile">46dp</dimen>
+    <dimen name="row_height">68dp</dimen>
 </resources>

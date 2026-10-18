@@ -11,8 +11,8 @@ android {
         applicationId = "plus.efir.tv"
         minSdk = 21
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1"
+        versionCode = 4
+        versionName = "0.4"
     }
 
     buildTypes {
@@ -42,10 +42,9 @@ android {
 dependencies {
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.leanback:leanback:1.0.0")
+    implementation("androidx.recyclerview:recyclerview:1.3.2")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.2")
     implementation("androidx.media3:media3-exoplayer:1.3.1")
     implementation("androidx.media3:media3-exoplayer-hls:1.3.1")
     implementation("androidx.media3:media3-ui:1.3.1")
-    implementation("androidx.media3:media3-session:1.3.1")
-    implementation("androidx.palette:palette-ktx:1.0.0")
 }

@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Эфир+</string>
+    <string name="all_channels">Все</string>
+    <string name="hint_browse">↑↓ — переключить · ОК — на весь экран · ← — категории · Назад — выйти</string>
+    <string name="hint_fullscreen">ОК — скрыть подсказку · Назад — к списку</string>
+    <string name="empty_playlist">Плейлист пуст: добавь assets/channels.m3u</string>
+    <string name="no_signal">Нет сигнала</string>
+    <string name="source_failed">Источник упал</string>
+    <string name="trying_source">Пробуем следующий</string>
 </resources>

@@ -1,13 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="screen_bg">#FF0B0D12</color>
+    <color name="player_bg">#FF000000</color>
     <color name="card_info_bg">#FF141822</color>
     <color name="text_primary">#FFF4F6FA</color>
     <color name="text_muted">#FF9AA4B4</color>
+    <color name="text_shadow">#CC000000</color>
     <color name="accent">#FF4F8CFF</color>
+    <color name="rail_label">#FFB7C0CF</color>
+    <color name="rail_tile_bg">#FF1A2130</color>
+    <color name="row_bg_focused">#FF22304D</color>
+    <color name="row_bg_selected">#FF161C2A</color>
     <color name="chip_bg">#D9141822</color>
     <color name="chip_bg_selected">#FF2A3550</color>
     <color name="overlay_top">#00000000</color>
+    <color name="overlay_head">#E606080C</color>
     <color name="overlay_bottom">#E606080C</color>
     <color name="toast_bg">#F20C0F16</color>
 </resources>
