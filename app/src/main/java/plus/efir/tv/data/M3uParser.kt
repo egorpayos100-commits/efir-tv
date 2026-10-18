@@ -2,10 +2,10 @@ package plus.efir.tv.data
 
 private val ATTR = Regex("""([\w-]+)="([^"]*)"""")
 
-internal class Draft {
+internal class Draft(defaultGroup: String) {
     var id: String? = null
     var name: String = ""
-    var group: String = "Каналы"
+    var group: String = defaultGroup
     var logo: String? = null
     var epgId: String? = null
     var userAgent: String? = null
@@ -14,10 +14,13 @@ internal class Draft {
 
 object M3uParser {
 
-    /** The guide host serves the channel's own logo under the same id as its programme. */
+    /** The shelf a row lands on when its `group-title` is missing. */
+    const val LIVE_GROUP = "Каналы"
+    const val FILM_GROUP = "Фильмы"
+
     private const val PICON = "http://epg.one/img2/"
 
-    fun parse(text: String): List<Channel> {
+    fun parse(text: String, defaultGroup: String = LIVE_GROUP): List<Channel> {
         val merged = LinkedHashMap<String, Channel>()
         var draft: Draft? = null
 
@@ -27,9 +30,9 @@ object M3uParser {
 
             when {
             line.startsWith("#EXTM3U") -> Unit
-            line.startsWith("#EXTINF") -> draft = readExtInf(line)
+            line.startsWith("#EXTINF") -> draft = readExtInf(line, defaultGroup)
             line.startsWith("#EXTVLCOPT") -> readVlcOpt(line)?.let { (k, v) ->
-                val d = draft ?: Draft().also { draft = it }
+                val d = draft ?: Draft(defaultGroup).also { draft = it }
                 when (k) {
                     "http-user-agent" -> d.userAgent = v
                     "http-referrer", "http-referer" -> d.referrer = v
@@ -37,7 +40,7 @@ object M3uParser {
             }
             line.startsWith("#") -> Unit
             else -> {
-                val d = draft ?: Draft().also { draft = it }
+                val d = draft ?: Draft(defaultGroup).also { draft = it }
                 if (d.name.isBlank()) d.name = fallbackName(line)
                 val key = (d.id ?: d.name).trim().ifBlank { line }
                 val source = Source(line, d.userAgent, d.referrer)
@@ -55,8 +58,8 @@ object M3uParser {
         return merged.values.toList()
     }
 
-    private fun readExtInf(line: String): Draft {
-        val d = Draft()
+    private fun readExtInf(line: String, defaultGroup: String): Draft {
+        val d = Draft(defaultGroup)
         val comma = line.indexOf(',')
         if (comma >= 0) d.name = line.substring(comma + 1).trim()
         ATTR.findAll(line.substringBeforeLast(',')).forEach { m ->

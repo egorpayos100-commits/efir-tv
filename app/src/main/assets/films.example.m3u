@@ -1,0 +1,20 @@
+#EXTM3U
+
+# СВОЯ БИБЛИОТЕКА. Формат такой же, как у channels.m3u, но строки здесь —
+# фильмы, а не эфиры:
+#   • на рельсе каждая group-title — отдельная полка;
+#   • по стрелке вверх/вниз фильм НЕ запускается, играет только ОК;
+#   • в fullscreen ← → шагают на 30 секунд, ↑ ↓ на 5 минут;
+#   • приложение помнит, на чём ты остановил, и продолжает с этого места.
+#
+# URL должен быть прямым и не требовать браузера: .mp4 / .mkv / .ts или .m3u8
+# без подписи. Свой плейлист положи рядом как films.m3u — он в .gitignore,
+# потому что в путях бывают логины и пароли домашней сети.
+#
+# Два файла ниже — общественное достояние, они играют прямо сейчас.
+
+#EXTINF:-1 tvg-id="bbb" tvg-logo="https://archive.org/services/img/BigBuckBunny_124" group-title="Примеры",Big Buck Bunny (2008)
+https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4
+
+#EXTINF:-1 tvg-id="nosferatu" tvg-logo="https://archive.org/services/img/nosferatu_1922" group-title="Примеры",Nosferatu (1922)
+https://archive.org/download/nosferatu_1922/nosferatu_1922.mp4

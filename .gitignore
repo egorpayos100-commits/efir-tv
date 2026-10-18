@@ -4,5 +4,6 @@ build/
 local.properties
 .idea/
 .DS_Store
-app/src/main/assets/channels.m3u
 app/src/main/assets/*.m3u
+# Шаблоны плейлистов — без токенов, их держим в репозитории.
+!app/src/main/assets/*.example.m3u

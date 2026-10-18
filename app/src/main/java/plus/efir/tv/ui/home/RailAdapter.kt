@@ -8,9 +8,13 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import plus.efir.tv.R
 import plus.efir.tv.data.Channel
+import plus.efir.tv.data.Kind
 
 class Category(val title: String, val channels: List<Channel>) {
     val initial: String get() = title.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "?"
+
+    /** Film shelves play only on ОК and seek instead of zapping in fullscreen. */
+    val isFilmShelf: Boolean get() = channels.firstOrNull()?.kind == Kind.Film
 }
 
 class RailAdapter(

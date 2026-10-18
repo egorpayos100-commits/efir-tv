@@ -9,4 +9,7 @@
     <dimen name="rail_width">104dp</dimen>
     <dimen name="rail_tile">46dp</dimen>
     <dimen name="row_height">68dp</dimen>
+    <dimen name="film_row_height">104dp</dimen>
+    <dimen name="film_poster_width">62dp</dimen>
+    <dimen name="film_poster_height">93dp</dimen>
 </resources>

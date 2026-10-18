@@ -7,10 +7,12 @@
     <string name="favorite_off">☆</string>
     <string name="favorite_label">В избранное</string>
     <string name="hint_browse">↑↓ — канал · ОК — на весь экран · → — флажок ★ · ← — категории · Назад — выйти</string>
+    <string name="hint_films">↑↓ — фильм · ОК — смотреть · → — флажок ★ · ← — полки · Назад — выйти</string>
     <string name="hint_favorites">Пусто: на любом канале нажми → и ОК на флажке</string>
     <string name="added_favorite">Добавлено в избранные</string>
     <string name="removed_favorite">Убрано из избранных</string>
     <string name="hint_fullscreen">ОК — скрыть подсказку · Назад — к списку</string>
+    <string name="hint_film_fullscreen">←→ — 30 секунд · ↑↓ — 5 минут · ОК — скрыть подсказку · Назад — к полке</string>
     <string name="empty_playlist">Плейлист пуст: добавь assets/channels.m3u</string>
     <string name="no_signal">Нет сигнала</string>
     <string name="source_failed">Источник упал</string>

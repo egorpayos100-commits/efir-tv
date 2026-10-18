@@ -15,6 +15,8 @@ data class Source(
     val referrer: String? = null,
 )
 
+enum class Kind { Live, Film }
+
 data class Channel(
     val key: String,
     val name: String,
@@ -24,6 +26,8 @@ data class Channel(
     val number: Int = 0,
     /** Channel id inside the XMLTV guide, unrelated to `key`. */
     val epgId: String? = null,
+    /** Live rows zap on focus and get an EPG strip; films open only on ОК and get a poster tile. */
+    val kind: Kind = Kind.Live,
 ) {
     val isLiveSource: Boolean get() = sources.isNotEmpty()
 
@@ -38,7 +42,7 @@ data class Channel(
         val hue = (Math.abs(key.hashCode()) % 360).toFloat()
         val bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         val c = Canvas(bmp)
-        val radius = height * 0.18f
+        val radius = minOf(width, height) * 0.16f
         val rect = RectF(0f, 0f, width.toFloat(), height.toFloat())
 
         val background = Paint(Paint.ANTI_ALIAS_FLAG).apply {

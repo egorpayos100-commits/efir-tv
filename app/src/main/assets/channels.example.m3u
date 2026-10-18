@@ -1,0 +1,20 @@
+#EXTM3U
+
+# ТЕСТОВЫЕ ПОТОКИ. Это не эфиры каналов, а публичные HLS-заготовки,
+# чтобы проверить плеер и фокус пульта. Свой плейлист положи рядом как
+# channels.m3u — он в .gitignore, потому что в URL бывают токены.
+
+#EXTINF:-1 tvg-id="test-1" group-title="Проверка плеера",Test Stream 1
+https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8
+
+#EXTINF:-1 tvg-id="test-2" group-title="Проверка плеера",Test Stream 2
+https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8
+
+#EXTINF:-1 tvg-id="test-multi" group-title="Проверка запасного источника",Test Multi Source
+https://test-streams.mux.dev/pts_shift/master.m3u8
+https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8
+
+#EXTINF:-1 tvg-id="with-headers" group-title="Как выглядят каналы с заголовками",Example With Headers
+#EXTVLCOPT:http-user-agent=Mozilla/5.0 (Linux; Android 11) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36
+#EXTVLCOPT:http-referrer=https://example.com/
+https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8
