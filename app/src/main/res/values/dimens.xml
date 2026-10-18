@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="card_image_width">190dp</dimen>
+    <dimen name="card_image_height">106dp</dimen>
+    <dimen name="chip_width">150dp</dimen>
+    <dimen name="watch_gutter">40dp</dimen>
+</resources>

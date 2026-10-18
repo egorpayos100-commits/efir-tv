@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Efir" parent="Theme.Leanback" />
+
+    <style name="Theme.Efir.Browse" parent="Theme.Leanback.Browse">
+        <item name="android:windowBackground">@color/screen_bg</item>
+    </style>
+
+    <style name="Theme.Efir.Watch" parent="Theme.Leanback">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowBackground">@color/screen_bg</item>
+    </style>
+</resources>
