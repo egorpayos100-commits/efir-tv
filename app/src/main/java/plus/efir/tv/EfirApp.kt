@@ -10,6 +10,7 @@ class EfirApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        CrashReport.install(this)
         repository = ChannelRepository(this)
     }
 }

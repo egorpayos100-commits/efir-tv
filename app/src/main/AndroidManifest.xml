@@ -29,11 +29,18 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LEANER_LAUNCHER" />
+                <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
         <activity
-            android:name=".ui.player.WatchActivity"
+            android:name=".ui.home.CrashActivity"
+            android:exported="false"
+            android:screenOrientation="landscape"
+            android:theme="@style/Theme.Efir" />
+
+        <activity
+            android:name=".ui.watch.WatchActivity"
             android:exported="false"
             android:launchMode="singleTop"
             android:screenOrientation="landscape"

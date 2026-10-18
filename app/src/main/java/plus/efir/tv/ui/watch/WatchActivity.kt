@@ -16,6 +16,7 @@ import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.hls.HlsMediaSource
 import androidx.media3.ui.PlayerView
+import plus.efir.tv.CrashReport
 import plus.efir.tv.EfirApp
 import plus.efir.tv.R
 import plus.efir.tv.data.Channel
@@ -77,6 +78,8 @@ class WatchActivity : androidx.fragment.app.FragmentActivity() {
         index = ((target % channels.size) + channels.size) % channels.size
         sourceIndex = 0
         lastError = null
+        val tuning = channels[index]
+        CrashReport.lastAction = "${tuning.name} · ${tuning.sources.getOrNull(sourceIndex)?.url?.take(60)}"
         playCurrentSource()
         renderChrome()
         if (announce) setOverlay(true)

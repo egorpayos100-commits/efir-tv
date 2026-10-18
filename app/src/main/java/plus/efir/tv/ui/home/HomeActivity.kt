@@ -27,6 +27,7 @@ class HomeActivity : FragmentActivity() {
                 .replace(R.id.browse_frame, BrowseFragment())
                 .commit()
         }
+        CrashActivity.startIfCrashed(this)
     }
 
     class BrowseFragment : BrowseSupportFragment() {
