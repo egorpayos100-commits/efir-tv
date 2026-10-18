@@ -49,7 +49,6 @@ object M3uParser {
                 } else {
                     existing.copy(sources = existing.sources + source)
                 }
-                draft = null
             }
             }
         }
