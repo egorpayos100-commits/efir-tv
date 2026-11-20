@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.Efir" parent="Theme.Leanback" />
-
-    <style name="Theme.Efir.Home" parent="Theme.Leanback">
+    <!-- The TV's own theme: leanback was only ever a parent here, and it cost the app its weight. -->
+    <style name="Theme.Efir" parent="@android:style/Theme.DeviceDefault.NoActionBar">
         <item name="android:windowBackground">@color/screen_bg</item>
+    </style>
+
+    <style name="Theme.Efir.Home" parent="Theme.Efir">
         <item name="android:windowFullscreen">true</item>
     </style>
 </resources>

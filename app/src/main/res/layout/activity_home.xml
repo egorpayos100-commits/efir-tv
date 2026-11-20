@@ -15,58 +15,247 @@
         app:show_buffering="never"
         app:use_controller="false" />
 
+    <!-- The browse screen is a column: the tabs, the hero that says what is on air right now, and
+         the shelves under it. There is no rail on the left any more: everything is one line along
+         the top, and the whole width belongs to the cards. -->
     <LinearLayout
         android:id="@+id/browse_pane"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="horizontal"
+        android:orientation="vertical"
         android:paddingStart="@dimen/gutter"
-        android:paddingTop="@dimen/gutter"
-        android:paddingBottom="@dimen/gutter">
-
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rail"
-            android:layout_width="@dimen/rail_width"
-            android:layout_height="match_parent"
-            android:clipToPadding="false"
-            android:paddingBottom="@dimen/gutter"
-            android:scrollbars="none" />
+        android:paddingTop="14dp"
+        android:paddingEnd="@dimen/gutter"
+        android:paddingBottom="10dp">
 
         <LinearLayout
-            android:id="@+id/list_pane"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:layout_marginStart="@dimen/gutter"
-            android:orientation="vertical">
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/tab_height"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/tabs"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:clipToPadding="false"
+                android:focusable="false"
+                android:scrollbars="none" />
+
+            <!-- The one diagnosis line of the guide lives on the header, so it costs no row. -->
             <TextView
-                android:id="@+id/pane_title"
-                android:layout_width="match_parent"
+                android:id="@+id/tab_status"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="@dimen/gutter_half"
-                android:textColor="@color/text_primary"
-                android:textSize="22sp"
-                android:textStyle="bold" />
+                android:layout_marginStart="16dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="@color/text_muted"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <!-- The picture of what is running sits at the right of this band; the words on the left are
+             laid out around it by applyGeometry, so the width of the window is never guessed here. -->
+        <FrameLayout
+            android:id="@+id/hero_frame"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/hero_height"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/hero_bg"
+            android:clipToOutline="true"
+            android:outlineProvider="background">
+
+            <!-- The logo is only a quiet backdrop: blown up to the band it read as random stripes. -->
+            <ImageView
+                android:id="@+id/hero_art"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:alpha="0.16"
+                android:contentDescription="@null"
+                android:padding="18dp"
+                android:scaleType="fitCenter" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@drawable/hero_art_scrim" />
+
+            <LinearLayout
+                android:id="@+id/hero_text"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center_vertical"
+                android:orientation="vertical"
+                android:paddingStart="24dp"
+                android:paddingTop="12dp"
+                android:paddingEnd="380dp"
+                android:paddingBottom="12dp">
+
+                <TextView
+                    android:id="@+id/hero_name"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:fontFamily="sans-serif-medium"
+                    android:maxLines="1"
+                    android:textColor="@color/text_primary"
+                    android:textSize="26sp" />
+
+                <LinearLayout
+                    android:id="@+id/hero_programme"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:orientation="vertical">
+
+                    <LinearLayout
+                        android:id="@+id/hero_prev"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/hero_prev_time"
+                            android:layout_width="46dp"
+                            android:layout_height="wrap_content"
+                            android:textColor="@color/text_muted"
+                            android:textSize="11sp" />
+
+                        <TextView
+                            android:id="@+id/hero_prev_title"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="6dp"
+                            android:layout_weight="1"
+                            android:ellipsize="end"
+                            android:maxLines="1"
+                            android:textColor="@color/text_muted"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/hero_now"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/hero_now_time"
+                            android:layout_width="46dp"
+                            android:layout_height="wrap_content"
+                            android:textColor="@color/accent"
+                            android:textSize="12sp" />
+
+                        <TextView
+                            android:id="@+id/hero_now_title"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="6dp"
+                            android:layout_weight="1"
+                            android:ellipsize="end"
+                            android:fontFamily="sans-serif-medium"
+                            android:maxLines="1"
+                            android:textColor="@color/text_primary"
+                            android:textSize="17sp" />
+                    </LinearLayout>
+
+                    <FrameLayout
+                        android:id="@+id/hero_progress"
+                        android:layout_width="match_parent"
+                        android:layout_height="4dp"
+                        android:layout_marginStart="52dp"
+                        android:layout_marginTop="5dp"
+                        android:background="@drawable/epg_track_bg">
+
+                        <View
+                            android:id="@+id/hero_progress_fill"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:background="@drawable/epg_fill_bg" />
+                    </FrameLayout>
+
+                    <LinearLayout
+                        android:id="@+id/hero_next"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="5dp"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/hero_next_time"
+                            android:layout_width="46dp"
+                            android:layout_height="wrap_content"
+                            android:textColor="@color/text_muted"
+                            android:textSize="11sp" />
+
+                        <TextView
+                            android:id="@+id/hero_next_title"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="6dp"
+                            android:layout_weight="1"
+                            android:ellipsize="end"
+                            android:maxLines="1"
+                            android:textColor="@color/text_muted"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- The live picture sits inside the band, not behind it: the player is moved in here by
+                 applyGeometry, so the band's own plate can never cover what is on air. -->
+            <FrameLayout
+                android:id="@+id/preview_box"
+                android:layout_width="320dp"
+                android:layout_height="180dp"
+                android:layout_gravity="end|center_vertical"
+                android:layout_marginEnd="10dp"
+                android:background="@drawable/preview_bg"
+                android:clipToOutline="true"
+                android:outlineProvider="background">
+
+                <!-- Covers the black window while nothing is tuned: a dark plate with the channel's
+                     mark, instead of a hole in the band. -->
+                <ImageView
+                    android:id="@+id/preview_art"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/preview_bg"
+                    android:contentDescription="@null"
+                    android:padding="20dp"
+                    android:scaleType="fitCenter" />
+            </FrameLayout>
+        </FrameLayout>
+
+        <!-- The shelves slide under the hero; the fade says the first row is not the top. -->
+        <FrameLayout
+            android:id="@+id/list_frame"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginTop="10dp"
+            android:layout_weight="1">
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/channel_list"
                 android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
+                android:layout_height="match_parent"
                 android:clipToPadding="false"
-                android:paddingEnd="@dimen/gutter"
                 android:scrollbars="none" />
 
-            <TextView
-                android:id="@+id/hint_bar"
+            <View
+                android:id="@+id/list_fade"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/gutter_half"
-                android:text="@string/hint_browse"
-                android:textColor="@color/text_muted"
-                android:textSize="13sp" />
-        </LinearLayout>
+                android:layout_height="34dp"
+                android:layout_gravity="top"
+                android:background="@drawable/list_fade_top"
+                android:clickable="false"
+                android:focusable="false"
+                android:focusableInTouchMode="false"
+                android:importantForAccessibility="no"
+                android:visibility="gone" />
+        </FrameLayout>
     </LinearLayout>
 
     <LinearLayout
@@ -102,8 +291,6 @@
                 android:layout_weight="1"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:shadowColor="@color/text_shadow"
-                android:shadowRadius="6"
                 android:textColor="@color/text_primary"
                 android:textSize="15sp" />
         </LinearLayout>
@@ -120,8 +307,7 @@
                 android:layout_width="54dp"
                 android:layout_height="wrap_content"
                 android:textColor="@color/accent"
-                android:textSize="15sp"
-                android:textStyle="bold" />
+                android:textSize="15sp" />
 
             <TextView
                 android:id="@+id/epg_now_title"
@@ -130,27 +316,25 @@
                 android:layout_marginStart="10dp"
                 android:layout_weight="1"
                 android:ellipsize="end"
+                android:fontFamily="sans-serif-medium"
                 android:maxLines="1"
-                android:shadowColor="@color/text_shadow"
-                android:shadowRadius="8"
                 android:textColor="@color/text_primary"
-                android:textSize="17sp"
-                android:textStyle="bold" />
+                android:textSize="22sp" />
         </LinearLayout>
 
         <FrameLayout
             android:id="@+id/epg_progress"
             android:layout_width="match_parent"
-            android:layout_height="3dp"
+            android:layout_height="5dp"
             android:layout_marginStart="64dp"
-            android:layout_marginTop="6dp"
-            android:background="@color/epg_track">
+            android:layout_marginTop="8dp"
+            android:background="@drawable/epg_track_bg">
 
             <View
                 android:id="@+id/epg_progress_fill"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:background="@color/accent" />
+                android:background="@drawable/epg_fill_bg" />
         </FrameLayout>
 
         <LinearLayout
@@ -175,8 +359,6 @@
                 android:layout_weight="1"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:shadowColor="@color/text_shadow"
-                android:shadowRadius="6"
                 android:textColor="@color/text_primary"
                 android:textSize="15sp" />
         </LinearLayout>
@@ -198,8 +380,6 @@
             android:id="@+id/full_title"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:shadowColor="@color/text_shadow"
-            android:shadowRadius="8"
             android:textColor="@color/text_primary"
             android:textSize="26sp"
             android:textStyle="bold" />
@@ -209,27 +389,146 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:shadowColor="@color/text_shadow"
-            android:shadowRadius="8"
             android:textColor="@color/text_muted"
             android:textSize="14sp" />
     </LinearLayout>
 
-    <TextView
-        android:id="@+id/full_hint"
+    <!-- A VK page or a trailer brings no controls of ours, so this bar is them: it says what the
+         film is doing, how far it has gone and where the end is. It never takes the focus. -->
+    <LinearLayout
+        android:id="@+id/web_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:background="@drawable/web_bar_bg"
+        android:clickable="false"
+        android:focusable="false"
+        android:focusableInTouchMode="false"
+        android:orientation="vertical"
+        android:paddingStart="@dimen/gutter"
+        android:paddingTop="22dp"
+        android:paddingEnd="@dimen/gutter"
+        android:paddingBottom="16dp"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/web_bar_state"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_pause" />
+
+            <TextView
+                android:id="@+id/web_bar_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:textColor="@color/text_primary"
+                android:textSize="15sp" />
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
+
+            <TextView
+                android:id="@+id/web_bar_time"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text_muted"
+                android:textSize="15sp" />
+        </LinearLayout>
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="16dp"
+            android:layout_marginTop="6dp">
+
+            <View
+                android:id="@+id/web_bar_track"
+                android:layout_width="match_parent"
+                android:layout_height="4dp"
+                android:layout_gravity="center_vertical"
+                android:background="@drawable/web_bar_track" />
+
+            <View
+                android:id="@+id/web_bar_fill"
+                android:layout_width="match_parent"
+                android:layout_height="4dp"
+                android:layout_gravity="center_vertical"
+                android:background="@drawable/web_bar_fill"
+                android:transformPivotX="0dp" />
+
+            <View
+                android:id="@+id/web_bar_thumb"
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:layout_gravity="center_vertical|start"
+                android:background="@drawable/web_bar_thumb" />
+        </FrameLayout>
+    </LinearLayout>
+
+    <!-- Pause and seek answer in the middle of the picture, the way they do on a phone: a glyph
+         and a word that fade out on their own and never take the focus from the film. -->
+    <LinearLayout
+        android:id="@+id/web_hint"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom|center_horizontal"
+        android:layout_gravity="center"
+        android:background="@drawable/web_hint_bg"
+        android:clickable="false"
+        android:focusable="false"
+        android:focusableInTouchMode="false"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="30dp"
+        android:paddingTop="20dp"
+        android:paddingEnd="30dp"
+        android:paddingBottom="20dp"
+        android:visibility="gone">
+
+        <ImageView
+            android:id="@+id/web_hint_icon"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_pause" />
+
+        <TextView
+            android:id="@+id/web_hint_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="18dp"
+            android:textColor="@color/text_primary"
+            android:textSize="26sp" />
+    </LinearLayout>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/channel_overlay"
+        android:layout_width="@dimen/picker_width"
+        android:layout_height="match_parent"
+        android:layout_gravity="end"
+        android:layout_marginTop="@dimen/gutter"
+        android:layout_marginEnd="@dimen/gutter"
         android:layout_marginBottom="@dimen/gutter"
-        android:background="@drawable/toast_bg"
-        android:paddingStart="18dp"
-        android:paddingTop="8dp"
-        android:paddingEnd="18dp"
-        android:paddingBottom="8dp"
-        android:text="@string/hint_fullscreen"
-        android:textColor="@color/text_muted"
-        android:textSize="13sp"
-        android:visibility="invisible" />
+        android:background="@drawable/picker_bg"
+        android:clipToPadding="false"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp"
+        android:visibility="gone" />
+
+    <include
+        android:id="@+id/film_detail"
+        layout="@layout/film_detail"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
 
     <TextView
         android:id="@+id/toast"

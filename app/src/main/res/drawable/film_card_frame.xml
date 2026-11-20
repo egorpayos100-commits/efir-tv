@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The poster covers its own card edge to edge, so the card's stroke can never be seen under it:
+     the cursor's ring is drawn over the picture instead, as a foreground. A film that is really
+     running keeps a blue glowing frame of its own while the cursor walks elsewhere. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="16dp" />
+            <stroke android:width="3dp" android:color="@color/accent" />
+        </shape>
+    </item>
+    <item android:state_selected="true">
+        <layer-list>
+            <item>
+                <shape android:shape="rectangle">
+                    <corners android:radius="16dp" />
+                    <stroke android:width="4dp" android:color="#4D4C8DFF" />
+                </shape>
+            </item>
+            <item
+                android:bottom="3dp"
+                android:left="3dp"
+                android:right="3dp"
+                android:top="3dp">
+                <shape android:shape="rectangle">
+                    <corners android:radius="13dp" />
+                    <stroke android:width="2dp" android:color="@color/accent" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+    <item android:drawable="@android:color/transparent" />
+</selector>

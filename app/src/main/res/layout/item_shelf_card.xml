@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One channel on a shelf: a small logo plate, the channel's name, and the programme it carries
+     right now, so the row says more than the picture of the logo did. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="@dimen/shelf_card_width"
+    android:layout_height="@dimen/shelf_card_height"
+    android:layout_marginStart="5dp"
+    android:layout_marginEnd="5dp"
+    android:layout_marginTop="4dp"
+    android:layout_marginBottom="8dp"
+    android:background="@drawable/shelf_card_bg"
+    android:clipToOutline="true"
+    android:focusable="true"
+    android:outlineProvider="background">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="9dp"
+        android:paddingEnd="10dp">
+
+        <FrameLayout
+            android:layout_width="42dp"
+            android:layout_height="42dp"
+            android:background="@drawable/logo_tile_bg">
+
+            <ImageView
+                android:id="@+id/card_logo"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@null"
+                android:padding="5dp"
+                android:scaleType="fitCenter" />
+        </FrameLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/card_name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="1"
+                android:textColor="@color/text_primary"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/card_now"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="@color/text_muted"
+                android:textSize="11sp" />
+
+            <!-- How far the programme has run: the guide tiles carry the same track, so a card
+                 answers «just started or almost over» without opening the channel. -->
+            <FrameLayout
+                android:id="@+id/card_run"
+                android:layout_width="match_parent"
+                android:layout_height="3dp"
+                android:layout_marginTop="4dp"
+                android:background="@color/epg_track"
+                android:visibility="gone">
+
+                <View
+                    android:id="@+id/card_run_fill"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/tile_fill_bg" />
+            </FrameLayout>
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- A mark, not a second cursor: white for «this one is running», never the cursor's blue. -->
+    <View
+        android:id="@+id/card_live"
+        android:layout_width="3dp"
+        android:layout_height="26dp"
+        android:layout_gravity="start|center_vertical"
+        android:layout_marginStart="3dp"
+        android:background="@drawable/row_live_bg"
+        android:visibility="gone" />
+
+</FrameLayout>

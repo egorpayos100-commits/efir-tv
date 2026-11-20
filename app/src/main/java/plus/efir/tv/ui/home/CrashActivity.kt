@@ -1,15 +1,14 @@
 package plus.efir.tv.ui.home
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import android.widget.ScrollView
 import android.widget.TextView
-import androidx.fragment.app.FragmentActivity
 import plus.efir.tv.CrashReport
 import plus.efir.tv.R
 
-class CrashActivity : FragmentActivity() {
+class CrashActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A tile is a card even unlit: the guide is read as a table, not as a list of lines. The channel
+     that is on air keeps a blue glowing frame while the cursor walks the rest of the table. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="12dp" />
+            <gradient
+                android:angle="270"
+                android:endColor="@color/tile_focus_bottom"
+                android:startColor="@color/tile_focus_top" />
+            <stroke android:width="2dp" android:color="@color/accent" />
+        </shape>
+    </item>
+    <item android:state_selected="true">
+        <layer-list>
+            <item>
+                <shape android:shape="rectangle">
+                    <corners android:radius="12dp" />
+                    <solid android:color="@color/card_info_bg" />
+                    <stroke android:width="4dp" android:color="#404C8DFF" />
+                </shape>
+            </item>
+            <item
+                android:bottom="3dp"
+                android:left="3dp"
+                android:right="3dp"
+                android:top="3dp">
+                <shape android:shape="rectangle">
+                    <corners android:radius="9dp" />
+                    <solid android:color="@color/card_info_bg" />
+                    <stroke android:width="2dp" android:color="@color/accent" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="12dp" />
+            <solid android:color="@color/card_info_bg" />
+            <stroke android:width="1dp" android:color="@color/tile_edge" />
+        </shape>
+    </item>
+</selector>

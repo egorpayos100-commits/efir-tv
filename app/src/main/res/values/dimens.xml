@@ -1,15 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <dimen name="card_image_width">190dp</dimen>
-    <dimen name="card_image_height">106dp</dimen>
     <dimen name="chip_width">150dp</dimen>
     <dimen name="watch_gutter">40dp</dimen>
     <dimen name="gutter">32dp</dimen>
     <dimen name="gutter_half">14dp</dimen>
-    <dimen name="rail_width">104dp</dimen>
-    <dimen name="rail_tile">46dp</dimen>
-    <dimen name="row_height">68dp</dimen>
-    <dimen name="film_row_height">104dp</dimen>
-    <dimen name="film_poster_width">62dp</dimen>
-    <dimen name="film_poster_height">93dp</dimen>
+    <dimen name="row_height">70dp</dimen>
+    <dimen name="tile_height">122dp</dimen>
+    <dimen name="tile_min_width">230dp</dimen>
+    <!-- One card of a horizontal shelf: a 16:9 window, the way every streaming wall shows a channel.
+         Kept compact so the last shelf of the screen is read whole, not cut at the bottom edge. -->
+    <dimen name="shelf_card_width">206dp</dimen>
+    <dimen name="shelf_card_height">84dp</dimen>
+    <dimen name="shelf_header_height">26dp</dimen>
+    <!-- The band at the top of the browse screen: the tabs, and the live hero under them. -->
+    <dimen name="tab_height">42dp</dimen>
+    <dimen name="hero_height">200dp</dimen>
+    <!-- Posters are official vertical artwork, 2:3, with the title written on the picture. Six of
+         them fit a row on 960dp; the cell height is counted from the width at runtime. -->
+    <dimen name="poster_cell_height">168dp</dimen>
+    <dimen name="poster_cell_min_width">116dp</dimen>
+    <dimen name="picker_width">330dp</dimen>
 </resources>

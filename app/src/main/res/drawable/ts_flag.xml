@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A bookmark flag for a copy that is not HD yet: the notch at the bottom says «hanging
+     ribbon», not «another chip». Drawn here instead of a downloaded picture. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="22dp"
+    android:height="30dp"
+    android:viewportWidth="22"
+    android:viewportHeight="30">
+    <path
+        android:fillColor="#FFE0352B"
+        android:pathData="M0,0h22v30l-11,-7L0,30z" />
+</vector>

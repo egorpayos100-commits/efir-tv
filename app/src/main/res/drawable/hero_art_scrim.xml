@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The colour of the channel behind its own name: solid at the left edge where the words are, gone
+     before the live picture starts, so the two never fight over the same pixels. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <gradient
+        android:angle="0"
+        android:endColor="#000B0D12"
+        android:startColor="#F20B0D12"
+        android:type="linear" />
+</shape>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Only the folder a downloaded build is written to, never the rest of the cache. -->
+<paths>
+    <cache-path
+        name="updates"
+        path="updates" />
+</paths>

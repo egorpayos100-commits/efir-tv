@@ -1,24 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="@dimen/row_height"
-    android:background="@drawable/row_bg"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="6dp"
+    android:minHeight="@dimen/row_height"
+    android:background="@drawable/channel_row_bg"
     android:focusable="true"
     android:gravity="center_vertical"
     android:paddingStart="12dp"
-    android:paddingEnd="12dp">
+    android:paddingTop="6dp"
+    android:paddingEnd="12dp"
+    android:paddingBottom="6dp">
+
+    <!-- The channel that is really running: a lit strip at the left edge, white so it is never mixed
+         with the blue glow the cursor leaves behind. The negative margin cancels its width, so the
+         number does not jump when the bar appears. -->
+    <View
+        android:id="@+id/row_live"
+        android:layout_width="5dp"
+        android:layout_height="match_parent"
+        android:layout_marginStart="-5dp"
+        android:background="@drawable/row_live_bg"
+        android:visibility="gone" />
 
     <TextView
         android:id="@+id/row_num"
-        android:layout_width="26dp"
+        android:layout_width="28dp"
         android:layout_height="wrap_content"
         android:textColor="@color/text_muted"
         android:textSize="13sp" />
 
     <ImageView
         android:id="@+id/row_logo"
-        android:layout_width="62dp"
-        android:layout_height="36dp"
+        android:layout_width="64dp"
+        android:layout_height="40dp"
         android:layout_marginStart="4dp"
         android:contentDescription="@null"
         android:scaleType="fitCenter" />
@@ -35,18 +50,21 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:ellipsize="end"
+            android:fontFamily="sans-serif-medium"
             android:maxLines="1"
             android:textColor="@color/text_primary"
-            android:textSize="16sp" />
+            android:textSize="17sp" />
 
         <TextView
             android:id="@+id/row_meta"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
             android:ellipsize="end"
-            android:maxLines="1"
+            android:lineSpacingMultiplier="0.92"
+            android:maxLines="2"
             android:textColor="@color/text_muted"
-            android:textSize="12sp" />
+            android:textSize="14sp" />
     </LinearLayout>
 
     <TextView

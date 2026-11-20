@@ -2,14 +2,19 @@
 <resources>
     <color name="screen_bg">#FF0B0D12</color>
     <color name="player_bg">#FF000000</color>
-    <color name="card_info_bg">#FF141822</color>
-    <color name="text_primary">#FFF4F6FA</color>
-    <color name="text_muted">#FF9AA4B4</color>
-    <color name="text_shadow">#CC000000</color>
-    <color name="accent">#FF4F8CFF</color>
-    <color name="accent_soft">#334F8CFF</color>
-    <color name="rail_label">#FFB7C0CF</color>
-    <color name="rail_tile_bg">#FF1A2130</color>
+    <color name="line">#FF262D3D</color>
+    <color name="card_info_bg">#FF141821</color>
+    <color name="text_primary">#FFF3F5F9</color>
+    <color name="text_muted">#FF8A93A6</color>
+    <color name="accent">#FF4C8DFF</color>
+    <color name="accent_soft">#334C8DFF</color>
+    <!-- The channel that is really on air: a white bar and a white arrow, never the blue the
+         cursor glows with, so «горит» and «стою» are two different signs. -->
+    <color name="on_air">#FFFFFFFF</color>
+    <color name="rail_pill_bg">#FFF4F6FA</color>
+    <color name="rail_pill_fg">#FF0B0D12</color>
+    <color name="rail_tile_bg">#FF161D2A</color>
+    <color name="rail_tile_focus">#1A0B0D12</color>
     <color name="row_bg_focused">#FF22304D</color>
     <color name="row_bg_selected">#FF161C2A</color>
     <color name="chip_bg">#D9141822</color>
@@ -20,4 +25,10 @@
     <color name="toast_bg">#F20C0F16</color>
     <color name="epg_panel">#E60C0F16</color>
     <color name="epg_track">#26FFFFFF</color>
+    <color name="tile_edge">#FF222A3B</color>
+    <color name="tile_focus_top">#FF2C4066</color>
+    <color name="tile_focus_bottom">#FF141A28</color>
+    <color name="tile_accent">#FFEAF1FF</color>
+    <!-- Text on the amber quality chip: near-black, so «TS» reads at couch distance. -->
+    <color name="quality_ink">#FF17130B</color>
 </resources>

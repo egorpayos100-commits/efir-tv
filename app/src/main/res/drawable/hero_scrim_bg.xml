@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The words sit on the left of the still, so the dark side of the gradient is the left one. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:angle="0"
+        android:centerColor="#E00B0D12"
+        android:endColor="#590B0D12"
+        android:startColor="#FA0B0D12"
+        android:type="linear" />
+</shape>

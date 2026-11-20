@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- IPTV playlists and streams are still plain HTTP in places, and the EPG dump is served over
+     HTTP too. Cleartext stays allowed for every host; nothing here pins a certificate. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

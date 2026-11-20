@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A film is an official vertical poster with its name written on the picture: the shelf reads as
+     a cinema wall, and the whole card is one button that opens the film's page. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="@dimen/poster_cell_height"
+    android:layout_margin="5dp"
+    android:background="@drawable/film_card_bg"
+    android:clipToOutline="true"
+    android:focusable="true"
+    android:foreground="@drawable/film_card_frame"
+    android:outlineProvider="background">
+
+    <ImageView
+        android:id="@+id/row_logo"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:contentDescription="@null"
+        android:scaleType="centerCrop" />
+
+    <!-- The caption sits on the picture; this darkens only the lower part of it. -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="64dp"
+        android:layout_gravity="bottom"
+        android:background="@drawable/film_scrim_bg" />
+
+    <LinearLayout
+        android:id="@+id/row_caption"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:orientation="vertical"
+        android:paddingStart="9dp"
+        android:paddingTop="6dp"
+        android:paddingEnd="9dp"
+        android:paddingBottom="7dp">
+
+        <!-- No text shadows: a blurred copy of every caption is what made the wall drop frames. -->
+        <TextView
+            android:id="@+id/row_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="2"
+            android:textColor="@color/text_primary"
+            android:textSize="13sp" />
+
+        <TextView
+            android:id="@+id/row_meta"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="1dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="#D9AEB7C7"
+            android:textSize="10sp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/row_score"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|start"
+        android:layout_margin="5dp"
+        android:background="@drawable/score_bg"
+        android:paddingStart="5dp"
+        android:paddingTop="2dp"
+        android:paddingEnd="5dp"
+        android:paddingBottom="2dp"
+        android:textColor="@color/text_primary"
+        android:textSize="9sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
+
+    <!-- The new copy sits as a red bookmark in the corner the favourite star used to hold: it was
+         in the way, and favourites are still one long ОК or the film's page away. -->
+    <TextView
+        android:id="@+id/row_quality"
+        android:layout_width="22dp"
+        android:layout_height="30dp"
+        android:layout_gravity="top|end"
+        android:layout_marginEnd="9dp"
+        android:background="@drawable/ts_flag"
+        android:gravity="center"
+        android:includeFontPadding="false"
+        android:paddingBottom="7dp"
+        android:textColor="@android:color/white"
+        android:textSize="9sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
+
+    <ImageView
+        android:id="@+id/row_mark"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_gravity="center"
+        android:contentDescription="@null"
+        android:src="@drawable/ic_play" />
+
+    <!-- The film that is really running, so leaving it to browse channels does not lose it. -->
+    <View
+        android:id="@+id/row_live"
+        android:layout_width="4dp"
+        android:layout_height="32dp"
+        android:layout_gravity="start|center_vertical"
+        android:layout_marginStart="4dp"
+        android:background="@drawable/row_live_bg"
+        android:visibility="gone" />
+
+</FrameLayout>
