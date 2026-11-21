@@ -3394,7 +3394,12 @@ class HomeActivity : Activity() {
                     return true
                 }
                 guide || settings -> return super.dispatchKeyEvent(event)
-                channelList.hasFocus() -> {
+                else -> {
+                    // Catch-all for the live/favourites shelf: the focused child can be a card
+                    // inside a nested row RecyclerView, so channelList.hasFocus() is true only when
+                    // the focus really lives somewhere inside that tree — but the when-branch must
+                    // not silently fall through to super, which is what made «вниз» jump to the
+                    // tabs or do nothing on the first shelves.
                     shelfAdapter.stepVertical(1)
                     return true
                 }
@@ -3416,8 +3421,9 @@ class HomeActivity : Activity() {
                     return true
                 }
                 guide || settings -> return super.dispatchKeyEvent(event)
-                channelList.hasFocus() -> {
-                    // Out of the top shelf the cursor belongs to the tabs.
+                else -> {
+                    // Same fix as DPAD_DOWN: use else to prevent falling through to super when the
+                    // focus sits inside a nested shelf row rather than on channelList itself.
                     if (!shelfAdapter.stepVertical(-1)) focusTabs()
                     return true
                 }
@@ -3444,8 +3450,8 @@ class HomeActivity : Activity() {
                     channelAdapter.requestFocusAt(channelAdapter.flagPosition)
                     return true
                 }
-                channelList.hasFocus() -> {
-                    // The first card of a row is where left stops; leaving the tab is up or back.
+                else -> {
+                    // Shelf cards: left stops at the first card, never leaves the tab sideways.
                     shelfAdapter.stepHorizontal(-1)
                     return true
                 }
@@ -3468,7 +3474,7 @@ class HomeActivity : Activity() {
                     return true
                 }
                 channelAdapter.isFlagFocused() -> return true
-                channelList.hasFocus() -> {
+                else -> {
                     // On a settings row the star is one press to the right, so favourites stay
                     // reachable with the arrows alone; on a shelf the row itself moves sideways.
                     if (settings) channelAdapter.requestFlagFocusAt(channelIndex)
