@@ -34,11 +34,24 @@ object Doh {
     private val IPV4 = Regex("""^(\d{1,3}\.){3}\d{1,3}$""")
     private val cache = ConcurrentHashMap<String, Pair<Long, String>>()
 
-    fun appliesTo(host: String): Boolean = host.lowercase().endsWith(SUFFIX)
+    /**
+     * Hosts the provider's DNS is known to poison. GitHub raw is where playlists, the version
+     * file and APK updates live; the system resolver on some boxes answers it with a block page,
+     * so DoH is used for it the same way it is used for the site's own domain.
+     */
+    private val FORCED_DOH = setOf(
+        "raw.githubusercontent.com",
+        "objects.githubusercontent.com",
+    )
+
+    fun appliesTo(host: String): Boolean =
+        host.lowercase().endsWith(SUFFIX) || host.lowercase() in FORCED_DOH
 
     /** Addresses to dial for the host, best first; null would mean "ask the system". */
     fun dial(host: String): List<String?> =
-        if (appliesTo(host)) EDGES + listOf(resolve(host)) else listOf(null)
+        if (host.lowercase().endsWith(SUFFIX)) EDGES + listOf(resolve(host))
+        else if (host.lowercase() in FORCED_DOH) listOf(resolve(host))
+        else listOf(null)
 
     /**
      * Unit address for any host, asked over DNS-over-HTTPS. Artwork hosts are not ours, but the
