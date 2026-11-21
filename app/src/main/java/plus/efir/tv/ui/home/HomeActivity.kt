@@ -68,6 +68,7 @@ import java.util.Locale
 import java.util.Random
 import java.util.concurrent.Executors
 
+@androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
 class HomeActivity : Activity() {
 
     private enum class Mode { PREVIEW, FULLSCREEN }

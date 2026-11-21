@@ -34,6 +34,7 @@ import java.util.concurrent.Executors
  * One ExoPlayer instance shared by the preview pane and fullscreen:
  * the box only has a single hardware decoder.
  */
+@androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
 class Tuner(context: Context) {
 
     private val appContext = context.applicationContext

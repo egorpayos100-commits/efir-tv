@@ -18,6 +18,7 @@ import kotlin.math.pow
  * после подъёма. Строка плейлиста может добавить свою поправку `tvg-gain` — она ложится поверх
  * автоматики. Эфир обработчик не трогает: для него он просто пропускает звук как есть.
  */
+@androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
 class GainProcessor : BaseAudioProcessor() {
 
     /** Фильмы — да, эфир — нет: выключенный обработчик переписывает звук без изменений. */

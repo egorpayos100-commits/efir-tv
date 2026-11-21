@@ -283,7 +283,7 @@ class SelfUpdate(private val context: Context) {
     /** Bytes written, or 0 when the address is not a file, too big, or the box has no room for it. */
     private fun getToFile(address: String, to: File): Long {
         val connection = open(address) ?: return 0
-        totalBytes = connection.contentLengthLong
+        totalBytes = connection.contentLength.toLong()
         return try {
             connection.inputStream.use { input ->
                 FileOutputStream(to).use { output ->

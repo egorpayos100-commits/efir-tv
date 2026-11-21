@@ -227,7 +227,7 @@ class ChannelRepository(private val context: Context) {
                 if (known == null) {
                     if (fresh.isEmpty()) continue
                     byKey[key] = channel.copy(number = ++number, sources = fresh)
-                    if (name.isNotEmpty()) byName.putIfAbsent(name, key)
+                    if (name.isNotEmpty() && !byName.containsKey(name)) byName[name] = key
                 } else {
                     if (fresh.isEmpty()) continue
                     byKey[known.key.trim().lowercase()] = known.copy(sources = known.sources + fresh)

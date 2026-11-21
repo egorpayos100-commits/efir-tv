@@ -111,7 +111,9 @@ object LogoLoader {
                 inFlight.remove(key)
                 val host = runCatching { URL(url).host }.getOrNull().orEmpty()
                 if (host.isNotEmpty()) {
-                    val fails = hostFailures.merge(host, 1, Int::plus) ?: 0
+                    val fails = synchronized(hostFailures) {
+                        ((hostFailures[host] ?: 0) + 1).also { hostFailures[host] = it }
+                    }
                     if (fails >= HOST_FAILURES) {
                         hostFailures.remove(host)
                         deadHosts[host] = System.currentTimeMillis()
