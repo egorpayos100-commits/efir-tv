@@ -342,6 +342,6 @@ class SelfUpdate(private val context: Context) {
 
         /** Where the newest build lives; the same host as his playlist. */
         private const val DEFAULT_URL =
-            "https://raw.githubusercontent.com/egorpayos100-commits/tvlist/main/efir-version.txt"
+            "https://raw.githubusercontent.com/egorpayos100-commits/efir-tv/main/efir-version.txt"
     }
 }
