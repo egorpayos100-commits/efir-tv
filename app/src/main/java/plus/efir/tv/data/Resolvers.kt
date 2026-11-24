@@ -28,6 +28,7 @@ object Resolvers {
 
     const val ONE_TV = "1tv"
     const val OK_PREFIX = "ok:"
+    const val VK_PREFIX = "vk:"
 
     private const val TAG = "EfirResolver"
     private const val PREFS = "resolvers"
@@ -35,7 +36,8 @@ object Resolvers {
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) " +
             "Chrome/120.0.0.0 Safari/537.36"
 
-    private fun isKnown(id: String) = id == ONE_TV || id.startsWith(OK_PREFIX) || id.startsWith("ok_")
+    private fun isKnown(id: String) = id == ONE_TV || id.startsWith(OK_PREFIX) || id.startsWith("ok_") ||
+        id.startsWith(VK_PREFIX) || id.startsWith("vk_") || id.startsWith("vk-")
 
     /** Public-list ids to fall back on when the official player gives nothing. */
     fun backupTvgIds(id: String): List<String> = when {
@@ -61,6 +63,10 @@ object Resolvers {
                 id.startsWith(OK_PREFIX) || id.startsWith("ok_") -> {
                     val videoId = id.substringAfter(':').substringAfter('_').trim()
                     okRu(videoId)
+                }
+                id.startsWith(VK_PREFIX) || id.startsWith("vk_") || id.startsWith("vk-") -> {
+                    val videoKey = id.substringAfter(':').trim()
+                    vkVideo(videoKey)
                 }
                 else -> Resolved.Failed("нет такого резолвера")
             }
@@ -205,6 +211,52 @@ object Resolvers {
     }.getOrElse {
         Log.w(TAG, "okRu resolve failed", it)
         Resolved.Failed("Ошибка запроса OK.ru: ${it.message}")
+    }
+
+    private val VK_STREAM_HEADERS = mapOf(
+        "User-Agent" to DESKTOP_USER_AGENT,
+        "Referer" to "https://vk.com/",
+    )
+
+    private fun vkVideo(videoKey: String): Resolved = runCatching {
+        val clean = videoKey.trim().let {
+            if (it.startsWith("vk:") || it.startsWith("vk-") || it.startsWith("vk_")) it.substring(3) else it
+        }
+        val match = Regex("""(-?\d+)[_ -](\d+)""").find(clean)
+            ?: return Resolved.Failed("Неверный формат VK video ID: $videoKey")
+        val oidRaw = match.groupValues[1]
+        val vid = match.groupValues[2]
+        val oid = if (oidRaw.startsWith("-")) oidRaw else "-$oidRaw"
+        val fullParam = "${oid}_$vid"
+
+        val address = "https://vk.com/al_video.php"
+        val connection = URL(address).openConnection() as HttpURLConnection
+        connection.connectTimeout = 8_000
+        connection.readTimeout = 12_000
+        connection.requestMethod = "POST"
+        connection.instanceFollowRedirects = true
+        connection.setRequestProperty("User-Agent", DESKTOP_USER_AGENT)
+        connection.setRequestProperty("X-Requested-With", "XMLHttpRequest")
+        connection.setRequestProperty("Referer", "https://vk.com/")
+        connection.doOutput = true
+        val postData = "act=show&al=1&video=$fullParam".toByteArray(Charsets.UTF_8)
+        connection.outputStream.use { it.write(postData) }
+
+        if (connection.responseCode != 200) {
+            return Resolved.Failed("VK вернул HTTP ${connection.responseCode}")
+        }
+        val text = connection.inputStream.bufferedReader(Charsets.UTF_8).readText()
+        val hlsRegex = Regex("""https?:\\/\\/[^\s"'\\]+\.m3u8[^\s"'\\]*""")
+        val hlsMatch = hlsRegex.find(text)
+        if (hlsMatch != null) {
+            val streamUrl = hlsMatch.value.replace("\\/", "/")
+            Resolved.Stream(streamUrl, VK_STREAM_HEADERS)
+        } else {
+            Resolved.Failed("m3u8 не найден в ответе VK для $fullParam")
+        }
+    }.getOrElse {
+        Log.w(TAG, "vkVideo resolve failed", it)
+        Resolved.Failed("Ошибка запроса VK: ${it.message}")
     }
 
     /** What the browser player puts on its own API calls. */

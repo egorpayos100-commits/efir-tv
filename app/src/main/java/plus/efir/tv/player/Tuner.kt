@@ -28,6 +28,12 @@ import plus.efir.tv.data.Kind
 import plus.efir.tv.data.Resolved
 import plus.efir.tv.data.Resolvers
 import plus.efir.tv.data.Source
+import plus.efir.tv.player.audio.AudioProfile
+import plus.efir.tv.player.audio.CompressorProcessor
+import plus.efir.tv.player.audio.DialogDownmixProcessor
+import plus.efir.tv.player.audio.LimiterProcessor
+import plus.efir.tv.player.audio.LiveAudioProfile
+import android.media.audiofx.LoudnessEnhancer
 import java.util.concurrent.Executors
 
 /**
@@ -52,6 +58,17 @@ class Tuner(context: Context) {
     /** Общая поправка громкости: одна на эфир и на фильмы, живёт, пока живёт плеер. */
     private val gainStage = GainProcessor()
 
+    val liveProfile = LiveAudioProfile(
+        AudioProfile.fromName(
+            appContext.getSharedPreferences("efir", Context.MODE_PRIVATE)
+                .getString("audio_profile", AudioProfile.SOFT.name)
+        )
+    )
+    private val dialogDownmix = DialogDownmixProcessor(liveProfile)
+    private val compressor = CompressorProcessor(liveProfile)
+    private val limiter = LimiterProcessor(liveProfile)
+    private var loudnessEnhancer: LoudnessEnhancer? = null
+
     private val renderers = object : DefaultRenderersFactory(appContext) {
         override fun buildAudioSink(
             context: Context,
@@ -60,7 +77,14 @@ class Tuner(context: Context) {
         ): AudioSink = DefaultAudioSink.Builder(context)
             .setEnableFloatOutput(enableFloatOutput)
             .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
-            .setAudioProcessorChain(DefaultAudioSink.DefaultAudioProcessorChain(gainStage))
+            .setAudioProcessorChain(
+                DefaultAudioSink.DefaultAudioProcessorChain(
+                    dialogDownmix,
+                    compressor,
+                    limiter,
+                    gainStage
+                )
+            )
             .build()
     }
 
@@ -261,6 +285,10 @@ class Tuner(context: Context) {
             if (state == Player.STATE_IDLE) error = null
             publish()
         }
+
+        override fun onAudioSessionIdChanged(audioSessionId: Int) {
+            updateLoudnessEnhancer(audioSessionId)
+        }
     }
 
     init {
@@ -367,7 +395,36 @@ class Tuner(context: Context) {
         publish()
     }
 
+    fun setAudioProfile(profile: AudioProfile) {
+        liveProfile.current = profile
+        appContext.getSharedPreferences("efir", Context.MODE_PRIVATE)
+            .edit()
+            .putString("audio_profile", profile.name)
+            .apply()
+        updateLoudnessEnhancer(player.audioSessionId)
+    }
+
+    fun cycleAudioProfile(): AudioProfile {
+        val next = liveProfile.current.next()
+        setAudioProfile(next)
+        return next
+    }
+
+    private fun updateLoudnessEnhancer(sessionId: Int) {
+        if (sessionId == C.AUDIO_SESSION_ID_UNSET) return
+        val targetMb = liveProfile.current.loudnessGainMb
+        loudnessEnhancer?.release()
+        loudnessEnhancer = runCatching {
+            LoudnessEnhancer(sessionId).apply {
+                setTargetGain(targetMb)
+                enabled = targetMb > 0
+            }
+        }.getOrNull()
+    }
+
     fun release() {
+        loudnessEnhancer?.release()
+        loudnessEnhancer = null
         uiCancelRetry()
         main.removeCallbacks(stallCheck)
         released = true

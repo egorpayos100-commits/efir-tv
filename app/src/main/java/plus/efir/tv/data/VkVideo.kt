@@ -21,6 +21,27 @@ object VkVideo {
     )
 
     /**
+     * Extracts "oid_id" from any VK video address, e.g. "-220018529_456240212".
+     */
+    fun videoId(raw: String): String? {
+        val text = raw.trim()
+        if (text.isEmpty()) return null
+        EMBED.find(text)?.let { match ->
+            val uri = Uri.parse(match.value)
+            val oid = uri.getQueryParameter("oid")
+            val id = uri.getQueryParameter("id")
+            if (!oid.isNullOrBlank() && !id.isNullOrBlank()) {
+                val cleanOid = if (oid.startsWith("-")) oid else "-$oid"
+                return "${cleanOid}_$id"
+            }
+        }
+        val page = PAGE.find(text) ?: return null
+        val oid = page.groupValues[1]
+        val cleanOid = if (oid.startsWith("-")) oid else "-$oid"
+        return "${cleanOid}_${page.groupValues[2]}"
+    }
+
+    /**
      * The embed address for a VK page, or null when the row is not one.
      * The `hash` is the access key of an unlisted video: without it VK answers «invalid user».
      */

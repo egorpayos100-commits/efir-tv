@@ -11,8 +11,8 @@ android {
         applicationId = "plus.efir.tv"
         minSdk = 21
         targetSdk = 34
-        versionCode = 133
-        versionName = "1.33"
+        versionCode = 134
+        versionName = "1.34"
     }
 
     buildTypes {

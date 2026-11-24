@@ -1103,6 +1103,7 @@ class HomeActivity : Activity() {
             row(SETTINGS_CHECK, getString(R.string.settings_check, checkLabel)),
             row(SETTINGS_INTERVAL, getString(R.string.settings_interval, repo.refreshHours())),
             row(SETTINGS_EPG, getString(R.string.settings_epg, epg.url().ifBlank { "—" })),
+            row(SETTINGS_AUDIO, "Выравнивание звука: ${tuner.liveProfile.current.title}"),
             row(SETTINGS_LOG, getString(R.string.settings_log)),
             row(SETTINGS_CACHE, getString(R.string.settings_cache)),
             row(SETTINGS_REFRESH, getString(R.string.settings_refresh)),
@@ -1394,20 +1395,11 @@ class HomeActivity : Activity() {
 
     /** First ОК: put the row on air in the preview window and stay in the list. */
     private fun startPreview(channel: Channel) {
-        // A VK page has no stream of its own; its player takes the screen straight away.
-        vkUrlOf(channel)?.let { openVk(channel, it); return }
-        if (channel.kind != Kind.Film) {
-            tuneNow(channel)
+        if (channel.kind == Kind.Film) {
+            openFilm(channel)
             return
         }
-        if (channel.sources.isEmpty()) {
-            toast(channel.name, getString(R.string.film_no_source))
-            return
-        }
-        if (tuner.channel?.key != channel.key || tuner.isIdle) {
-            tuner.tune(channel, resumeOf(channel) ?: 0)
-            persist(channel)
-        }
+        tuneNow(channel)
         previewKey = channel.key
     }
 
@@ -1815,6 +1807,12 @@ class HomeActivity : Activity() {
                 toast(getString(R.string.settings_rail), getString(R.string.cache_cleared))
             }
 
+            SETTINGS_AUDIO -> {
+                val next = tuner.cycleAudioProfile()
+                toast("Выравнивание звука", "Режим: ${next.title}")
+                channelAdapter.updateRow(SETTINGS_AUDIO)
+            }
+
             else -> toast(getString(R.string.settings_rail), getString(R.string.playlist_pulling))
         }
     }
@@ -1955,11 +1953,39 @@ class HomeActivity : Activity() {
         }
     }
 
-    /** «Смотреть»: the shelf row becomes the selection so the lit strip and the resume follow it. */
-    private fun playFilm(film: Channel) {
-        val at = categories.getOrNull(categoryIndex)?.channels?.indexOfFirst { it.key == film.key } ?: -1
-        if (at >= 0) channelIndex = at
-        vkUrlOf(film)?.let { openVk(film, it); return }
+    private fun openFilm(film: Channel) {
+        val vkId = film.sources.firstNotNullOfOrNull { VkVideo.videoId(it.url) }
+        val vkUrl = vkUrlOf(film)
+        if (vkId != null) {
+            val vkSource = Source(url = "vk:$vkId", resolver = "vk:$vkId")
+            val target = film.copy(sources = listOf(vkSource) + film.sources)
+            playerReturn = if (detailOpen()) film else null
+            if (playerReturn != null) detailPane.visibility = View.INVISIBLE
+            mode = Mode.FULLSCREEN
+            fullRequested = true
+            PlaybackLog.recordSession("фильм ExoPlayer: ${target.name}")
+            placePlayer(full = true)
+            geomKey = null
+            playerView.visibility = View.VISIBLE
+            withPlayerSurface {
+                fullRequested = false
+                epg.holdPipe(EPG_HOLD_MS)
+                tuner.tune(target, resumeOf(film) ?: 0L)
+                persist(film)
+                browsePane.descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
+                browsePane.visibility = View.INVISIBLE
+                placeEpgOverPicture()
+                renderStatus()
+                setOverlay(true)
+                ui.removeCallbacks(slateTick)
+                ui.postDelayed(slateTick, SLATE_MS)
+            }
+            return
+        }
+        if (vkUrl != null) {
+            openVk(film, vkUrl)
+            return
+        }
         if (film.sources.isEmpty()) {
             toast(film.displayName, getString(R.string.film_no_source))
             return
@@ -1971,6 +1997,13 @@ class HomeActivity : Activity() {
             playerReturn = null
             detailPane.visibility = View.VISIBLE
         }
+    }
+
+    /** «Смотреть»: the shelf row becomes the selection so the lit strip and the resume follow it. */
+    private fun playFilm(film: Channel) {
+        val at = categories.getOrNull(categoryIndex)?.channels?.indexOfFirst { it.key == film.key } ?: -1
+        if (at >= 0) channelIndex = at
+        openFilm(film)
     }
 
     private fun playTrailer(film: Channel) {
@@ -2407,6 +2440,10 @@ class HomeActivity : Activity() {
     private fun enterFullscreen() {
         val target = current() ?: return
         if (mode == Mode.FULLSCREEN || pooled.isEmpty()) return
+        if (target.kind == Kind.Film) {
+            openFilm(target)
+            return
+        }
         vkUrlOf(target)?.let { openVk(target, it); return }
         // The mode is switched before the surface is waited out: while the hand-over runs the screen
         // still looks like the band, and a layout pass in that window put the player back into the
@@ -3559,6 +3596,7 @@ class HomeActivity : Activity() {
         private const val SETTINGS_EPG = SETTINGS_PREFIX + "epg"
         private const val SETTINGS_LOG = SETTINGS_PREFIX + "log"
         private const val SETTINGS_CACHE = SETTINGS_PREFIX + "cache"
+        private const val SETTINGS_AUDIO = SETTINGS_PREFIX + "audio"
         private const val SETTINGS_SEARCH = SETTINGS_PREFIX + "search"
         private const val SETTINGS_UPDATED = SETTINGS_PREFIX + "updated"
         private const val SEARCH_SHELF = Category.SEARCH_SHELF
