@@ -15,7 +15,7 @@ class Category(val title: String, val channels: List<Channel>, val shelfId: Stri
     /** The starred shelf, which is empty until he starts pressing → and ОК on a flag. */
     val isFavorites: Boolean get() = shelfId == FAVORITES_SHELF
 
-    /** Starred films live on their own shelf: a cinema row inside «Избранные» among channels is mush. */
+    /** Starred films live on their own shelf, laid out as a poster grid. */
     val isFavoriteFilms: Boolean get() = shelfId == FAVORITES_FILMS_SHELF
 
     /** The guide: every channel as a tile that says what plays on it right now. */

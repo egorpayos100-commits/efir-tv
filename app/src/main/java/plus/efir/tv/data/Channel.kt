@@ -63,6 +63,7 @@ data class Channel(
      * The player applies it, so a quiet film and a loud channel sound equally loud.
      */
     val gainDb: Float = 0f,
+    val seasonal: Boolean = false,
 ) {
     /** Placeholder artwork until the channel's own logo arrives. */
     fun swatch(width: Int, height: Int): Bitmap = Tiles.get(key, monogram, width, height)

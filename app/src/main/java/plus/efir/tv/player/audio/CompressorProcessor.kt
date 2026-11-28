@@ -28,7 +28,9 @@ class CompressorProcessor(private val liveProfile: LiveAudioProfile) : BaseAudio
     private var makeupDb = 0f
 
     override fun onConfigure(inputAudioFormat: AudioFormat): AudioFormat {
-        if (!isSupportedEncoding(inputAudioFormat.encoding)) return AudioFormat.NOT_SET
+        if (!liveProfile.filmAudioProcessing || !isSupportedEncoding(inputAudioFormat.encoding)) {
+            return AudioFormat.NOT_SET
+        }
         detectorCoef = onePoleCoefficient(RMS_WINDOW_SECONDS, inputAudioFormat.sampleRate)
         smoothingCoef = onePoleCoefficient(PARAMETER_SMOOTHING_SECONDS, inputAudioFormat.sampleRate)
         coefProfile = null
@@ -37,6 +39,12 @@ class CompressorProcessor(private val liveProfile: LiveAudioProfile) : BaseAudio
 
     override fun queueInput(inputBuffer: ByteBuffer) {
         if (!inputBuffer.hasRemaining()) return
+        if (!liveProfile.filmAudioProcessing) {
+            val output = replaceOutputBuffer(inputBuffer.remaining())
+            output.put(inputBuffer)
+            output.flip()
+            return
+        }
         val profile = liveProfile.current
         if (profile !== coefProfile) {
             attackCoef = onePoleCoefficient(profile.attackMs / 1000f, inputAudioFormat.sampleRate)

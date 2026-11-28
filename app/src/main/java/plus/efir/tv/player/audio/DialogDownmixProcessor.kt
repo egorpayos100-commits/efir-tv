@@ -17,7 +17,7 @@ class DialogDownmixProcessor(private val liveProfile: LiveAudioProfile) : BaseAu
     private var smoothingCoef = 0f
 
     override fun onConfigure(inputAudioFormat: AudioFormat): AudioFormat {
-        if (!isSupportedEncoding(inputAudioFormat.encoding)) {
+        if (!liveProfile.filmAudioProcessing || !isSupportedEncoding(inputAudioFormat.encoding)) {
             return AudioFormat.NOT_SET
         }
         if (inputAudioFormat.channelCount != 6 && inputAudioFormat.channelCount != 8) {
@@ -29,6 +29,12 @@ class DialogDownmixProcessor(private val liveProfile: LiveAudioProfile) : BaseAu
 
     override fun queueInput(inputBuffer: ByteBuffer) {
         if (!inputBuffer.hasRemaining()) return
+        if (!liveProfile.filmAudioProcessing) {
+            val output = replaceOutputBuffer(inputBuffer.remaining())
+            output.put(inputBuffer)
+            output.flip()
+            return
+        }
         val encoding = inputAudioFormat.encoding
         val inChannels = inputAudioFormat.channelCount
         val inFrameBytes = inputAudioFormat.bytesPerFrame

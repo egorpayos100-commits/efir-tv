@@ -393,8 +393,8 @@
             android:textSize="14sp" />
     </LinearLayout>
 
-    <!-- A VK page or a trailer brings no controls of ours, so this bar is them: it says what the
-         film is doing, how far it has gone and where the end is. It never takes the focus. -->
+    <!-- A native film or a VK page brings no controller of its own, so this bar is it: state,
+         time gone and the line to the end. It never takes the focus. -->
     <LinearLayout
         android:id="@+id/web_bar"
         android:layout_width="match_parent"

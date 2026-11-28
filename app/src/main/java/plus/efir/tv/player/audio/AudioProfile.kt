@@ -64,4 +64,7 @@ enum class AudioProfile(
 class LiveAudioProfile(initial: AudioProfile = AudioProfile.SOFT) {
     @Volatile
     var current: AudioProfile = initial
+
+    @Volatile
+    var filmAudioProcessing: Boolean = false
 }

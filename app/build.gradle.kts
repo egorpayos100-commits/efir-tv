@@ -11,8 +11,8 @@ android {
         applicationId = "plus.efir.tv"
         minSdk = 21
         targetSdk = 34
-        versionCode = 134
-        versionName = "1.34"
+        versionCode = 150
+        versionName = "1.50"
     }
 
     buildTypes {
@@ -26,6 +26,7 @@ android {
     }
 
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -44,11 +45,13 @@ android {
 }
 
 dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.recyclerview:recyclerview:1.3.2")
     implementation("androidx.media3:media3-exoplayer:1.3.1")
     implementation("androidx.media3:media3-exoplayer-hls:1.3.1")
     implementation("androidx.media3:media3-exoplayer-dash:1.3.1")
+    implementation("org.jellyfin.media3:media3-ffmpeg-decoder:1.3.1+2")
     implementation("androidx.media3:media3-ui:1.3.1")
 }
 

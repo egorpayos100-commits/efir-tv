@@ -3,8 +3,10 @@ package plus.efir.tv.ui.home
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.util.Log
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import plus.efir.tv.R
@@ -13,7 +15,12 @@ import plus.efir.tv.player.LogoLoader
 import plus.efir.tv.player.formatTimecode
 
 /** One strip of the home screen: a name, and the cards under it. */
-data class Shelf(val title: String?, val channels: List<Channel>, val posters: Boolean = false)
+data class Shelf(
+    val title: String?,
+    val channels: List<Channel>,
+    val posters: Boolean = false,
+    val grid: Boolean = false,
+)
 
 /**
  * The home screen as streaming apps draw it: shelves of cards stacked down the middle, each one
@@ -41,6 +48,7 @@ class ShelfAdapter(
 
     private var shelves: List<Shelf> = emptyList()
     private var host: RecyclerView? = null
+    private var gridColumns = 6
 
     /** The card the cursor stands on: card steps need it, and so does up out of the first shelf. */
     private var focusShelf = -1
@@ -74,6 +82,51 @@ class ShelfAdapter(
             }
         }
         focusAt(0, 0)
+    }
+
+    /** Down from the tabs: the first card of the first shelf. */
+    fun focusFirst() = focusAt(0, 0)
+
+    /** Up out of the top shelf: from there the cursor belongs to the tabs. */
+    fun isAtFirstShelf() = focusShelf <= 0
+
+    /** Left and right inside one row or grid; false at the edge so focus never jumps sideways. */
+    fun stepHorizontal(delta: Int): Boolean {
+        val shelf = shelves.getOrNull(focusShelf) ?: return false
+        val target = focusCard + delta
+        if (target !in shelf.channels.indices) return false
+        if (shelf.grid) {
+            val column = focusCard % gridColumns
+            if (delta < 0 && column == 0) return false
+            if (delta > 0 && column == gridColumns - 1) return false
+        }
+        val holder = host?.findViewHolderForAdapterPosition(focusShelf) as? Holder ?: return false
+        holder.focusCard(target)
+        return true
+    }
+
+    /** Up and down through a grid or between shelves; false at the ends hands focus to the tabs. */
+    fun stepVertical(delta: Int): Boolean {
+        if (focusShelf !in shelves.indices) {
+            if (delta <= 0) return false
+            focusAt(0, 0)
+            return true
+        }
+        val current = shelves[focusShelf]
+        if (current.grid) {
+            val target = focusCard + delta * gridColumns
+            if (target in current.channels.indices) {
+                focusAt(focusShelf, target, scrollShelf = false)
+                return true
+            }
+        }
+        val targetShelf = focusShelf + delta
+        if (targetShelf !in shelves.indices) return false
+        val next = shelves[targetShelf]
+        val column = if (current.grid) focusCard % gridColumns else focusCard
+        val card = if (next.grid) column % gridColumns else column
+        focusAt(targetShelf, card)
+        return true
     }
 
     /** The air moved to another channel: the two cards involved are the only ones repainted. */
@@ -112,43 +165,22 @@ class ShelfAdapter(
         }
     }
 
-    /** Down from the tabs: the first card of the first shelf. */
-    fun focusFirst() = focusAt(0, 0)
-
-    /** Up out of the top shelf: from there the cursor belongs to the tabs. */
-    fun isAtFirstShelf() = focusShelf <= 0
-
-    /** Left and right inside a row. Stops at the edges: the cursor never jumps sideways to a shelf. */
-    fun stepHorizontal(delta: Int): Boolean {
-        val shelf = shelves.getOrNull(focusShelf) ?: return false
-        val target = focusCard + delta
-        if (target !in shelf.channels.indices) return false
-        val holder = host?.findViewHolderForAdapterPosition(focusShelf) as? Holder ?: return false
-        // Only ask for the next card; focusShelf/focusCard follow the frame that really took the
-        // cursor. Moving the state first let a fast key repeat run ahead of the layout, the cursor
-        // out of the screen, and the tabs grabbed the focus that fell out of the detached card.
-        holder.focusCard(target)
-        return true
-    }
-
-    /** Up and down between shelves; false at the ends so the caller hands focus to the tabs. */
-    fun stepVertical(delta: Int): Boolean {
-        val target = focusShelf + delta
-        if (target !in shelves.indices) return false
-        val count = shelves[target].channels.size
-        focusAt(target, focusCard.coerceIn(0, (count - 1).coerceAtLeast(0)))
-        return true
-    }
-
-    private fun focusAt(shelf: Int, card: Int) {
+    private fun focusAt(shelf: Int, card: Int, scrollShelf: Boolean = true) {
         if (shelf !in shelves.indices) return
+        val previousShelf = focusShelf
         val count = shelves[shelf].channels.size
         focusShelf = shelf
         focusCard = card.coerceIn(0, (count - 1).coerceAtLeast(0))
         val list = host ?: return
         val holder = list.findViewHolderForAdapterPosition(shelf) as? Holder
         if (holder != null) {
-            list.smoothScrollToPosition(shelf)
+            if (scrollShelf && previousShelf != shelf) {
+                if (shelves[shelf].grid || shelves.getOrNull(previousShelf)?.grid == true) {
+                    list.scrollToPosition(shelf)
+                } else {
+                    list.smoothScrollToPosition(shelf)
+                }
+            }
             if (list.isInLayout || holder.row.isInLayout) {
                 holder.row.post { holder.focusCard(focusCard) }
             } else {
@@ -157,7 +189,7 @@ class ShelfAdapter(
         } else {
             pendingShelf = shelf
             pendingCard = focusCard
-            list.smoothScrollToPosition(shelf)
+            if (scrollShelf) list.smoothScrollToPosition(shelf) else list.scrollToPosition(shelf)
             list.postDelayed({
                 if (pendingShelf == shelf) {
                     val h = list.findViewHolderForAdapterPosition(shelf) as? Holder
@@ -180,6 +212,16 @@ class ShelfAdapter(
 
     override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
         host = recyclerView
+    }
+
+    fun setGridColumns(columns: Int) {
+        val next = columns.coerceAtLeast(1)
+        if (gridColumns == next) return
+        gridColumns = next
+        val list = host ?: return
+        for (at in 0 until list.childCount) {
+            (list.getChildViewHolder(list.getChildAt(at)) as? Holder)?.updateLayout()
+        }
     }
 
     override fun onViewAttachedToWindow(holder: Holder) {
@@ -205,21 +247,41 @@ class ShelfAdapter(
         private val title: TextView = view.findViewById(R.id.shelf_title)
         val row: RecyclerView = view.findViewById(R.id.shelf_row)
         private val adapter = RowAdapter(row)
+        private var shelf: Shelf? = null
 
         init {
-            row.layoutManager = LinearLayoutManager(view.context, RecyclerView.HORIZONTAL, false)
             row.itemAnimator = null
             row.adapter = this.adapter
+            row.isNestedScrollingEnabled = false
             row.nextFocusUpId = R.id.tabs
         }
 
         fun bind(shelf: Shelf, at: Int) {
+            this.shelf = shelf
             title.text = shelf.title.orEmpty()
             title.visibility = if (shelf.title.isNullOrBlank()) View.GONE else View.VISIBLE
             row.layoutParams = row.layoutParams.apply {
-                height = dp(if (shelf.posters) ROW_POSTER_H else ROW_CARD_H)
+                height = if (shelf.grid) ViewGroup.LayoutParams.WRAP_CONTENT
+                else dp(if (shelf.posters) ROW_POSTER_H else ROW_CARD_H)
             }
             adapter.submit(shelf.channels, shelf.posters, at)
+            updateLayout()
+        }
+
+        fun updateLayout() {
+            val grid = shelf?.grid == true
+            val current = row.layoutManager
+            val manager = if (grid) {
+                (current as? GridLayoutManager)?.apply { spanCount = gridColumns }
+                    ?: GridLayoutManager(row.context, gridColumns)
+            } else {
+                if (current is GridLayoutManager || current !is LinearLayoutManager ||
+                    current.orientation != RecyclerView.HORIZONTAL
+                ) {
+                    LinearLayoutManager(row.context, RecyclerView.HORIZONTAL, false)
+                } else current
+            }
+            if (row.layoutManager !== manager) row.layoutManager = manager
         }
 
         fun focusCard(card: Int) = adapter.requestFocusAt(card)
@@ -267,6 +329,7 @@ class ShelfAdapter(
             val target = position.coerceIn(0, items.lastIndex)
             val existing = hostRow.findViewHolderForAdapterPosition(target)
             if (existing != null) {
+                pendingFocus = -1
                 existing.itemView.requestFocus()
             } else {
                 pendingFocus = target

@@ -13,6 +13,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.text.InputType
+import android.util.Log
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.MotionEvent
@@ -63,6 +64,7 @@ import plus.efir.tv.player.PlaybackLog
 import plus.efir.tv.player.Tuner
 import plus.efir.tv.player.formatTimecode
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.Random
@@ -128,7 +130,7 @@ class HomeActivity : Activity() {
     private var webReturn: Channel? = null
     private var webBackToDetail = false
 
-    /** The film's own bar over a web page: state, time gone and the line to the end. */
+    /** The film's own bar over the native player or a web page: state, time gone and the line to the end. */
     private lateinit var webBar: View
     private lateinit var webBarState: ImageView
     private lateinit var webBarLabel: TextView
@@ -150,14 +152,17 @@ class HomeActivity : Activity() {
     /** A paused picture keeps its bar on screen: that is where he reads that he stopped it. */
     private var webBarPaused = false
     private val hideWebBar = Runnable {
-        if (vkKey != null && !webBarPaused) webBar.visibility = View.GONE
+        if (playbackBarActive() && !webBarPaused) webBar.visibility = View.GONE
     }
 
-    /** The page is the only one who knows the position, so the bar asks it once a second. */
+    /** The native player is read directly; a web page is asked what its video is doing. */
     private val webBarTick = object : Runnable {
         override fun run() {
-            if (vkKey == null) return
-            webBarRead()
+            when {
+                vkKey != null -> webBarRead()
+                nativeFilmControls() -> nativeBarRead()
+                else -> return
+            }
             ui.postDelayed(this, WEB_BAR_MS)
         }
     }
@@ -285,9 +290,10 @@ class HomeActivity : Activity() {
 
     // region cinema: the new release over the shelf, and one film opened from its poster
 
-    /** The four newest films the cinema banner rotates through, and the one on screen now. */
+    /** The films the cinema banner rotates through, and the one on screen now. */
     private var billFilms: List<Channel> = emptyList()
     private var billIndex = 0
+    private var billHoliday = false
 
     private lateinit var detailPane: View
     private lateinit var detailBackdrop: ImageView
@@ -797,6 +803,8 @@ class HomeActivity : Activity() {
         ui.removeCallbacks(watchTick)
         ui.removeCallbacks(billTick)
         ui.removeCallbacks(beatRunnable)
+        ui.removeCallbacks(webBarTick)
+        hideWebBarNow()
         saveResume()
         tuner.stop()
         previewKey = null
@@ -990,15 +998,22 @@ class HomeActivity : Activity() {
         else -> ""
     }
 
-    /** The films the banner walks through: the marked releases, newest first, at most four. */
-    /**
-     * The banners of the cinema. The film the harvester marked newest takes the first banner; the
-     * rest are shuffled by the date, so the row of banners changes once a day and not on every
-     * glance at the wall.
-     */
+    private fun isHolidaySeason(): Boolean {
+        val now = Calendar.getInstance()
+        val month = now.get(Calendar.MONTH)
+        val day = now.get(Calendar.DAY_OF_MONTH)
+        return (month == Calendar.NOVEMBER && day >= 20) ||
+            month == Calendar.DECEMBER ||
+            (month == Calendar.JANUARY && day <= 20)
+    }
+
     private fun billboardFilms(category: Category): List<Channel> {
         val films = category.channels.filter { it.kind == Kind.Film && it.sources.isNotEmpty() }
         if (films.isEmpty()) return emptyList()
+        if (isHolidaySeason()) {
+            val seasonal = films.filter { it.seasonal }.take(SEASONAL_BILLBOARD_MAX)
+            if (seasonal.isNotEmpty()) return seasonal
+        }
         val lead = films.firstOrNull { it.featured } ?: films.first()
         val day = System.currentTimeMillis() / 86_400_000L
         val rnd = Random(day * 53 + films.size)
@@ -1013,7 +1028,18 @@ class HomeActivity : Activity() {
 
     private val billTick = object : Runnable {
         override fun run() {
-            rotateBillboard()
+            val holiday = isHolidaySeason()
+            if (tab == Tab.FILMS && holiday != billHoliday) {
+                val category = categories.getOrNull(categoryIndex)
+                if (category != null) {
+                    billHoliday = holiday
+                    billFilms = billboardFilms(category)
+                    billIndex = 0
+                    channelAdapter.setBillboard(billFilms.firstOrNull(), 0, billFilms.size)
+                }
+            } else {
+                rotateBillboard()
+            }
             ui.postDelayed(this, BILL_MS)
         }
     }
@@ -1103,7 +1129,6 @@ class HomeActivity : Activity() {
             row(SETTINGS_CHECK, getString(R.string.settings_check, checkLabel)),
             row(SETTINGS_INTERVAL, getString(R.string.settings_interval, repo.refreshHours())),
             row(SETTINGS_EPG, getString(R.string.settings_epg, epg.url().ifBlank { "—" })),
-            row(SETTINGS_AUDIO, "Выравнивание звука: ${tuner.liveProfile.current.title}"),
             row(SETTINGS_LOG, getString(R.string.settings_log)),
             row(SETTINGS_CACHE, getString(R.string.settings_cache)),
             row(SETTINGS_REFRESH, getString(R.string.settings_refresh)),
@@ -1349,6 +1374,11 @@ class HomeActivity : Activity() {
             val target = pickerTarget ?: return
             vkUrlOf(target)?.let { openVk(target, it); return }
             tuner.tune(withBackups(target))
+            if (target.kind == Kind.Film) startNativeFilmBar()
+            else {
+                ui.removeCallbacks(webBarTick)
+                hideWebBarNow()
+            }
             guardAgainstSlate()
             persist(target)
             return
@@ -1395,11 +1425,20 @@ class HomeActivity : Activity() {
 
     /** First ОК: put the row on air in the preview window and stay in the list. */
     private fun startPreview(channel: Channel) {
-        if (channel.kind == Kind.Film) {
-            openFilm(channel)
+        // A VK page has no stream of its own; its player takes the screen straight away.
+        vkUrlOf(channel)?.let { openVk(channel, it); return }
+        if (channel.kind != Kind.Film) {
+            tuneNow(channel)
             return
         }
-        tuneNow(channel)
+        if (channel.sources.isEmpty()) {
+            toast(channel.name, getString(R.string.film_no_source))
+            return
+        }
+        if (tuner.channel?.key != channel.key || tuner.isIdle) {
+            tuner.tune(channel, resumeOf(channel) ?: 0)
+            persist(channel)
+        }
         previewKey = channel.key
     }
 
@@ -1502,6 +1541,7 @@ class HomeActivity : Activity() {
                     tuner.stop()
                     previewKey = null
                 }
+                billHoliday = isHolidaySeason()
                 billFilms = billboardFilms(category)
                 billIndex = 0
                 channelAdapter.submit(category.channels, billFilms.firstOrNull(), 0, billFilms.size)
@@ -1510,7 +1550,12 @@ class HomeActivity : Activity() {
             Tab.SETTINGS -> channelAdapter.submit(category.channels)
             else -> shelfAdapter.submit(
                 categories.map { shelf ->
-                    Shelf(shelf.title, shelf.channels, shelf.channels.firstOrNull()?.kind == Kind.Film)
+                    Shelf(
+                        shelf.title,
+                        shelf.channels,
+                        posters = shelf.channels.firstOrNull()?.kind == Kind.Film,
+                        grid = shelf.isFavoriteFilms,
+                    )
                 }
             )
         }
@@ -1807,12 +1852,6 @@ class HomeActivity : Activity() {
                 toast(getString(R.string.settings_rail), getString(R.string.cache_cleared))
             }
 
-            SETTINGS_AUDIO -> {
-                val next = tuner.cycleAudioProfile()
-                toast("Выравнивание звука", "Режим: ${next.title}")
-                channelAdapter.updateRow(SETTINGS_AUDIO)
-            }
-
             else -> toast(getString(R.string.settings_rail), getString(R.string.playlist_pulling))
         }
     }
@@ -1953,39 +1992,11 @@ class HomeActivity : Activity() {
         }
     }
 
-    private fun openFilm(film: Channel) {
-        val vkId = film.sources.firstNotNullOfOrNull { VkVideo.videoId(it.url) }
-        val vkUrl = vkUrlOf(film)
-        if (vkId != null) {
-            val vkSource = Source(url = "vk:$vkId", resolver = "vk:$vkId")
-            val target = film.copy(sources = listOf(vkSource) + film.sources)
-            playerReturn = if (detailOpen()) film else null
-            if (playerReturn != null) detailPane.visibility = View.INVISIBLE
-            mode = Mode.FULLSCREEN
-            fullRequested = true
-            PlaybackLog.recordSession("фильм ExoPlayer: ${target.name}")
-            placePlayer(full = true)
-            geomKey = null
-            playerView.visibility = View.VISIBLE
-            withPlayerSurface {
-                fullRequested = false
-                epg.holdPipe(EPG_HOLD_MS)
-                tuner.tune(target, resumeOf(film) ?: 0L)
-                persist(film)
-                browsePane.descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
-                browsePane.visibility = View.INVISIBLE
-                placeEpgOverPicture()
-                renderStatus()
-                setOverlay(true)
-                ui.removeCallbacks(slateTick)
-                ui.postDelayed(slateTick, SLATE_MS)
-            }
-            return
-        }
-        if (vkUrl != null) {
-            openVk(film, vkUrl)
-            return
-        }
+    /** «Смотреть»: the shelf row becomes the selection so the lit strip and the resume follow it. */
+    private fun playFilm(film: Channel) {
+        val at = categories.getOrNull(categoryIndex)?.channels?.indexOfFirst { it.key == film.key } ?: -1
+        if (at >= 0) channelIndex = at
+        vkUrlOf(film)?.let { openVk(film, it); return }
         if (film.sources.isEmpty()) {
             toast(film.displayName, getString(R.string.film_no_source))
             return
@@ -1997,13 +2008,6 @@ class HomeActivity : Activity() {
             playerReturn = null
             detailPane.visibility = View.VISIBLE
         }
-    }
-
-    /** «Смотреть»: the shelf row becomes the selection so the lit strip and the resume follow it. */
-    private fun playFilm(film: Channel) {
-        val at = categories.getOrNull(categoryIndex)?.channels?.indexOfFirst { it.key == film.key } ?: -1
-        if (at >= 0) channelIndex = at
-        openFilm(film)
     }
 
     private fun playTrailer(film: Channel) {
@@ -2325,6 +2329,7 @@ class HomeActivity : Activity() {
         val films = tab == Tab.FILMS
         val tiles = tab == Tab.GUIDE
         val shelves = tab == Tab.LIVE || tab == Tab.FAVORITES
+        val favouriteGrid = tab == Tab.FAVORITES && category?.isFavoriteFilms == true
         val wanted: RecyclerView.Adapter<*> = when {
             tiles -> tileAdapter
             shelves -> shelfAdapter
@@ -2333,7 +2338,7 @@ class HomeActivity : Activity() {
         if (channelList.adapter !== wanted) channelList.adapter = wanted
         // A lit card is drawn bigger than its cell, so the list must not cut it at the edges. It
         // still clips at its own bounds, and the padding gives the grown frame its room inside.
-        val zoomed = tiles || films
+        val zoomed = tiles || films || favouriteGrid
         channelList.clipChildren = true
         channelList.clipToPadding = !zoomed
         val pad = if (zoomed) dp(8f) else 0
@@ -2348,6 +2353,7 @@ class HomeActivity : Activity() {
         }
         listFade.visibility = if (zoomed) View.VISIBLE else View.GONE
         channelList.post { refreshListFade() }
+        if (shelves) shelfAdapter.setGridColumns(gridSpan())
         when {
             tiles -> {
                 val span = tileSpan()
@@ -2440,10 +2446,6 @@ class HomeActivity : Activity() {
     private fun enterFullscreen() {
         val target = current() ?: return
         if (mode == Mode.FULLSCREEN || pooled.isEmpty()) return
-        if (target.kind == Kind.Film) {
-            openFilm(target)
-            return
-        }
         vkUrlOf(target)?.let { openVk(target, it); return }
         // The mode is switched before the surface is waited out: while the hand-over runs the screen
         // still looks like the band, and a layout pass in that window put the player back into the
@@ -2481,6 +2483,7 @@ class HomeActivity : Activity() {
             // the key alone is not enough to decide: the tile would open onto silence.
             tuneNow()
         }
+        if (target.kind == Kind.Film) startNativeFilmBar()
 
         browsePane.descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
         browsePane.visibility = View.INVISIBLE
@@ -2500,6 +2503,8 @@ class HomeActivity : Activity() {
         hidePicker()
         mode = Mode.PREVIEW
         setOverlay(false)
+        ui.removeCallbacks(webBarTick)
+        hideWebBarNow()
         ui.removeCallbacks(slateTick)
         val card = playerReturn
         playerReturn = null
@@ -2583,6 +2588,7 @@ class HomeActivity : Activity() {
             tuner.tune(channel, resumeOf(channel) ?: 0)
             persist(channel)
         }
+        if (channel.kind == Kind.Film) startNativeFilmBar()
     }
 
     private fun hidePicker() {
@@ -2975,6 +2981,39 @@ class HomeActivity : Activity() {
         }
     }
 
+    private fun playbackBarActive() =
+        vkKey != null || (mode == Mode.FULLSCREEN && tuner.channel?.kind == Kind.Film)
+
+    private fun nativeFilmControls() =
+        vkKey == null && mode == Mode.FULLSCREEN && tuner.channel?.kind == Kind.Film
+
+    private fun nativeBarRead() {
+        if (!nativeFilmControls()) return
+        paintWebBar(tuner.positionMs, tuner.durationMs, tuner.isPaused || tuner.isIdle || tuner.isFinished)
+    }
+
+    private fun startNativeFilmBar() {
+        if (!nativeFilmControls()) return
+        nativeBarRead()
+        showWebBar()
+        ui.removeCallbacks(webBarTick)
+        ui.postDelayed(webBarTick, WEB_BAR_MS)
+    }
+
+    private fun toggleNativePlayback() {
+        if (!nativeFilmControls()) return
+        tuner.togglePlayback()
+        nativeBarRead()
+        setOverlay(true)
+    }
+
+    private fun setNativePaused(paused: Boolean) {
+        if (!nativeFilmControls()) return
+        tuner.setPaused(paused)
+        nativeBarRead()
+        setOverlay(true)
+    }
+
     private fun paintWebBar(at: Long, length: Long, paused: Boolean) {
         webBarState.setImageResource(if (paused) R.drawable.ic_play else R.drawable.ic_pause)
         webBarLabel.setText(if (paused) R.string.web_state_paused else R.string.web_state_playing)
@@ -3000,7 +3039,7 @@ class HomeActivity : Activity() {
 
     /** Up on every press, down again while the film runs; a paused film keeps its bar. */
     private fun showWebBar() {
-        if (vkKey == null) return
+        if (!playbackBarActive()) return
         webBar.visibility = View.VISIBLE
         // The first press can come before the page has answered once: an empty bar reads as broken.
         if (webBarLabel.text.isNullOrEmpty()) {
@@ -3013,7 +3052,7 @@ class HomeActivity : Activity() {
 
     /** The middle of the screen answers a press the way a phone player does, then clears itself. */
     private fun showWebHint(icon: Int, text: String?) {
-        if (vkKey == null || webTrailer) return
+        if (!playbackBarActive() || webTrailer) return
         webHintIcon.setImageResource(icon)
         webHintText.text = text.orEmpty()
         webHintText.visibility = if (text.isNullOrEmpty()) View.GONE else View.VISIBLE
@@ -3365,6 +3404,7 @@ class HomeActivity : Activity() {
 
         if (mode == Mode.FULLSCREEN) {
             // One table for both: on a live channel the arrows zap, on a film the same keys seek.
+            val film = tuner.channel?.kind == Kind.Film
             val step = when (event.keyCode) {
                 KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_MEDIA_REWIND -> -SEEK_SMALL_MS
                 KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> SEEK_SMALL_MS
@@ -3377,13 +3417,21 @@ class HomeActivity : Activity() {
                 event.keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER
             when {
                 event.keyCode == KeyEvent.KEYCODE_BACK -> exitFullscreen()
+                select && film -> if (event.repeatCount == 0) toggleNativePlayback()
                 select -> toggleOverlay()
-                step != 0L -> if (tuner.channel?.kind == Kind.Film) {
+                event.keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE && film ->
+                    if (event.repeatCount == 0) toggleNativePlayback()
+                event.keyCode == KeyEvent.KEYCODE_MEDIA_PLAY && film ->
+                    if (event.repeatCount == 0) setNativePaused(false)
+                event.keyCode == KeyEvent.KEYCODE_MEDIA_PAUSE && film ->
+                    if (event.repeatCount == 0) setNativePaused(true)
+                step != 0L -> if (film) {
                     // Holding the key repeats it, so the jump grows instead of needing a third speed.
                     seek(step * (event.repeatCount + 1))
                 } else stepAll(if (step > 0) 1 else -1)
                 else -> return super.dispatchKeyEvent(event)
             }
+            if (film) showWebBar()
             return true
         }
 
@@ -3552,11 +3600,21 @@ class HomeActivity : Activity() {
         if (fullOverlay.visibility == View.VISIBLE) setOverlay(false) else setOverlay(true)
     }
 
-    /** The overlay carries the timecode — the remote has no seek bar to draw. */
+    /** The overlay and the player bar carry the timecode — the remote has no seek bar to draw. */
     private fun seek(deltaMs: Long) {
         val to = tuner.seekBy(deltaMs)
-        if (to == null) toast(tuner.channel?.name ?: "", "перемотка включится, когда фильм начнётся")
-        else setOverlay(true)
+        if (to == null) {
+            toast(tuner.channel?.name ?: "", "перемотка включится, когда фильм начнётся")
+            showWebBar()
+        } else {
+            paintWebBar(to, tuner.durationMs, tuner.isPaused)
+            showWebHint(
+                if (deltaMs > 0) R.drawable.ic_forward else R.drawable.ic_rewind,
+                vkDelta(deltaMs),
+            )
+            showWebBar()
+            setOverlay(true)
+        }
     }
 
     companion object {
@@ -3570,6 +3628,7 @@ class HomeActivity : Activity() {
 
         /** The cinema banner walks through at most this many releases: a week of them, changed daily. */
         private const val BILLBOARD_MAX = 8
+        private const val SEASONAL_BILLBOARD_MAX = 7
 
         /** How long one banner stands before the next one takes its place. */
         private const val BILL_MS = 7_000L
@@ -3596,7 +3655,6 @@ class HomeActivity : Activity() {
         private const val SETTINGS_EPG = SETTINGS_PREFIX + "epg"
         private const val SETTINGS_LOG = SETTINGS_PREFIX + "log"
         private const val SETTINGS_CACHE = SETTINGS_PREFIX + "cache"
-        private const val SETTINGS_AUDIO = SETTINGS_PREFIX + "audio"
         private const val SETTINGS_SEARCH = SETTINGS_PREFIX + "search"
         private const val SETTINGS_UPDATED = SETTINGS_PREFIX + "updated"
         private const val SEARCH_SHELF = Category.SEARCH_SHELF

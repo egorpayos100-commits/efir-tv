@@ -5,6 +5,7 @@ import android.util.Log
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLEncoder
 import kotlin.random.Random
 
 /** Outcome of asking a broadcaster's own player for the current address. */
@@ -20,15 +21,16 @@ sealed class Resolved {
 }
 
 /**
- * Sources that have no address in the playlist: the current one is taken from the official player
- * of the channel every time the channel is opened. Only the broadcaster's own site is ever asked —
- * no restream pages, no proxies, and nothing that pretends to be another country.
+ * Sources that have no address in the playlist: the current one is taken from the service's own
+ * public player every time the channel is opened. Only the named service is asked — no anonymous
+ * proxies, and nothing that pretends to be another country.
  */
 object Resolvers {
 
     const val ONE_TV = "1tv"
     const val OK_PREFIX = "ok:"
     const val VK_PREFIX = "vk:"
+    const val MNOGOTV_PREFIX = "mnogotv:"
 
     private const val TAG = "EfirResolver"
     private const val PREFS = "resolvers"
@@ -37,7 +39,8 @@ object Resolvers {
             "Chrome/120.0.0.0 Safari/537.36"
 
     private fun isKnown(id: String) = id == ONE_TV || id.startsWith(OK_PREFIX) || id.startsWith("ok_") ||
-        id.startsWith(VK_PREFIX) || id.startsWith("vk_") || id.startsWith("vk-")
+        id.startsWith(VK_PREFIX) || id.startsWith("vk_") || id.startsWith("vk-") ||
+        id.startsWith(MNOGOTV_PREFIX)
 
     /** Public-list ids to fall back on when the official player gives nothing. */
     fun backupTvgIds(id: String): List<String> = when {
@@ -53,7 +56,11 @@ object Resolvers {
             val cached = read(prefs, id)
             if (cached != null && cached.second > System.currentTimeMillis()) {
                 Log.i(TAG, "$id cache hit → ${cached.first.take(110)}")
-                val headers = if (id.startsWith(OK_PREFIX) || id.startsWith("ok_")) OK_STREAM_HEADERS else STREAM_HEADERS
+                val headers = when {
+                    id.startsWith(OK_PREFIX) || id.startsWith("ok_") -> OK_STREAM_HEADERS
+                    id.startsWith(MNOGOTV_PREFIX) -> MNOGOTV_STREAM_HEADERS
+                    else -> STREAM_HEADERS
+                }
                 return Resolved.Stream(cached.first, headers)
             }
         }
@@ -68,6 +75,7 @@ object Resolvers {
                     val videoKey = id.substringAfter(':').trim()
                     vkVideo(videoKey)
                 }
+                id.startsWith(MNOGOTV_PREFIX) -> mnogoTv(id.substringAfter(':').trim())
                 else -> Resolved.Failed("нет такого резолвера")
             }
         }
@@ -76,9 +84,10 @@ object Resolvers {
                 Resolved.Failed("резолвер не ответил: ${it.javaClass.simpleName}")
             }
         if (outcome is Resolved.Stream) {
+            val ttl = if (id.startsWith(MNOGOTV_PREFIX)) MNOGOTV_TTL_MS else TTL_MS
             prefs.edit()
                 .putString(key(id), outcome.url)
-                .putLong(untilKey(id), System.currentTimeMillis() + TTL_MS)
+                .putLong(untilKey(id), System.currentTimeMillis() + ttl)
                 .apply()
         }
         Log.i(TAG, "$id → $outcome")
@@ -167,8 +176,54 @@ object Resolvers {
         connection.setRequestProperty("User-Agent", DESKTOP_USER_AGENT)
         if (connection.responseCode != 200) return null
         connection.inputStream.buffered().use { it.readBytes().toString(Charsets.UTF_8) }
-            .takeIf { it.length < 200_000 }
+            .takeIf { it.length < 1_000_000 }
     }.getOrNull()
+
+    private fun mnogoTv(slug: String): Resolved = runCatching {
+        if (!slug.matches(Regex("[a-z0-9-]+"))) return Resolved.Failed("неверный адрес MnogoTV")
+        val pageUrl = "https://mnogotv.com/tv/$slug/"
+        val page = body(pageUrl, 10_000, 15_000, mapOf("Referer" to "https://mnogotv.com/"))
+            ?: return Resolved.Failed("страница MnogoTV не отвечает")
+        val payload = page.replace("\\\"", "\"")
+        val key = Regex(
+            "\"channel\":\\{\"id\":\"${Regex.escape(slug)}\".*?\"k\":\"([^\"]+)\"",
+            RegexOption.DOT_MATCHES_ALL,
+        ).find(payload)?.groupValues?.get(1)
+            ?: return Resolved.Failed("ключ канала MnogoTV не найден")
+        val channelStart = payload.indexOf("\"channel\":{\"id\":\"$slug\"")
+        val nextChannel = payload.indexOf("\"channel\":{", channelStart + 1)
+        val channel = payload.substring(
+            channelStart,
+            if (nextChannel < 0) payload.length else nextChannel,
+        )
+        val alternates = Regex("\"k3\":\\[(.*?)]", RegexOption.DOT_MATCHES_ALL)
+            .find(channel)?.groupValues?.get(1)
+            ?.let { block -> Regex("\"([^\"]+)\"").findAll(block).map { it.groupValues[1] }.toList() }
+            .orEmpty()
+        var shortFallback: String? = null
+        for (candidate in (listOf(key) + alternates).distinct()) {
+            val encoded = URLEncoder.encode(candidate, "UTF-8")
+            val response = body(
+                "$MNOGOTV_API$encoded?s=1&y=1",
+                10_000,
+                15_000,
+                mapOf("Referer" to pageUrl),
+            ) ?: continue
+            val stream = JSONObject(response).optString("u")
+            if (!stream.startsWith("https://cdn.mnogotv.com/")) continue
+            // API can return an already expired locator; do not hand that failure to the player.
+            val manifest = body(stream, 4_000, 6_000, MNOGOTV_STREAM_HEADERS)
+            if (manifest?.startsWith("#EXTM3U") != true) continue
+            val segments = Regex("(?m)^#EXTINF:").findAll(manifest).count()
+            if (segments >= 3) return Resolved.Stream(stream, MNOGOTV_STREAM_HEADERS)
+            if (shortFallback == null) shortFallback = stream
+        }
+        shortFallback?.let { return Resolved.Stream(it, MNOGOTV_STREAM_HEADERS) }
+        Resolved.Failed("MnogoTV не выдал работающий адрес")
+    }.getOrElse {
+        Log.w(TAG, "mnogoTv resolve failed", it)
+        Resolved.Failed("ошибка MnogoTV: ${it.javaClass.simpleName}")
+    }
 
     private val OK_STREAM_HEADERS = mapOf(
         "User-Agent" to DESKTOP_USER_AGENT,
@@ -268,12 +323,22 @@ object Resolvers {
     /** The CDN serves the picture without any of this, but the page's referer keeps it polite. */
     private val STREAM_HEADERS = mapOf("Referer" to "https://www.1tv.ru/live")
 
+    private val MNOGOTV_STREAM_HEADERS = mapOf(
+        "User-Agent" to DESKTOP_USER_AGENT,
+        "Referer" to "https://mnogotv.com/",
+    )
+
+    private const val MNOGOTV_API = "https://cdn.mnogotv.com/s/t/k/"
+
     private const val PLAYLIST_URL =
         "https://stream.1tv.ru/api/playlist/1tvch-v1_as_array.json?r="
     private const val RESTRICTIONS_URL = "https://stream.1tv.ru/api/restrictions.json?r="
 
     /** Long enough to survive a channel switch back and forth, short enough to dodge a CDN move. */
     private const val TTL_MS = 10 * 60_000L
+
+    /** MnogoTV locators are temporary even though the playlist itself keeps refreshing. */
+    private const val MNOGOTV_TTL_MS = 60_000L
 
     private fun randomSeed() = Random.nextInt(100000, 999999)
 }

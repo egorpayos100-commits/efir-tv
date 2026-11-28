@@ -212,7 +212,7 @@ class ChannelRepository(private val context: Context) {
     private fun merge(lists: List<List<Channel>>): List<Channel> {
         val byKey = LinkedHashMap<String, Channel>()
         val byName = HashMap<String, String>()
-        val seenUrl = HashMap<String, String>()
+        val seenSource = HashMap<String, String>()
         var number = 0
         for (list in listOf(loadChannels()) + lists) {
             for (channel in list) {
@@ -222,8 +222,10 @@ class ChannelRepository(private val context: Context) {
                 // shelf then showed two «Animal Planet», one of them silent. The name decides.
                 val name = channel.name.trim().lowercase().filter(Char::isLetterOrDigit)
                 val known = byKey[key] ?: byName[name]?.let { byKey[it] }
-                // Resolver rows have no address, so the address-dedupe must not eat them.
-                val fresh = channel.sources.filter { it.isResolver || seenUrl.put(it.url, key) == null }
+                val fresh = channel.sources.filter { source ->
+                    val identity = if (source.isResolver) "resolver:${source.resolver}" else "url:${source.url}"
+                    seenSource.put(identity, key) == null
+                }
                 if (known == null) {
                     if (fresh.isEmpty()) continue
                     byKey[key] = channel.copy(number = ++number, sources = fresh)

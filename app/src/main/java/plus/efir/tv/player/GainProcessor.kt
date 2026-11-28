@@ -58,8 +58,7 @@ class GainProcessor : BaseAudioProcessor() {
     private var sinceBlock = 0
 
     override fun onConfigure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
-        // Дорожки AC3/EAC3 идут в обход декодера: трогать там нечего.
-        if (inputAudioFormat.encoding != C.ENCODING_PCM_16BIT) {
+        if (!enabled || inputAudioFormat.encoding != C.ENCODING_PCM_16BIT) {
             return AudioProcessor.AudioFormat.NOT_SET
         }
         channels = inputAudioFormat.channelCount.coerceIn(1, 8)

@@ -29,6 +29,7 @@ internal class Draft(defaultGroup: String) {
     var backdrop: String? = null
     var trailer: String? = null
     var featured = false
+    var seasonal = false
     var quality: String? = null
     /** Loudness correction for this row, decibels: the player makes every row equally loud. */
     var gain: Float = 0f
@@ -73,6 +74,7 @@ object M3uParser {
                     featured = entry.featured,
                     quality = entry.quality,
                     gainDb = entry.gain,
+                    seasonal = entry.seasonal,
                 )
                 known.sources.any { it.url == url && url.isNotEmpty() } ||
                     known.sources.size >= MAX_SOURCES -> Unit
@@ -190,6 +192,8 @@ object M3uParser {
                 "tvg-backdrop", "backdrop" -> d.backdrop = m.groupValues[2].ifBlank { null }
                 "tvg-trailer", "trailer" -> d.trailer = m.groupValues[2].ifBlank { null }
                 "tvg-featured", "featured" -> d.featured =
+                    m.groupValues[2].equals("1", true) || m.groupValues[2].equals("true", true)
+                "tvg-seasonal", "seasonal" -> d.seasonal =
                     m.groupValues[2].equals("1", true) || m.groupValues[2].equals("true", true)
                 "tvg-quality", "quality" -> d.quality =
                     m.groupValues[2].trim().uppercase().ifBlank { null }

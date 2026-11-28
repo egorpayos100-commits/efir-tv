@@ -32,7 +32,9 @@ class LimiterProcessor(private val liveProfile: LiveAudioProfile) : BaseAudioPro
     private var frameScratch = FloatArray(0)
 
     override fun onConfigure(inputAudioFormat: AudioFormat): AudioFormat {
-        if (!isSupportedEncoding(inputAudioFormat.encoding)) return AudioFormat.NOT_SET
+        if (!liveProfile.filmAudioProcessing || !isSupportedEncoding(inputAudioFormat.encoding)) {
+            return AudioFormat.NOT_SET
+        }
         channels = inputAudioFormat.channelCount
         lookaheadFrames = max(2, (LOOKAHEAD_SECONDS * inputAudioFormat.sampleRate).roundToInt())
         releaseCoef = onePoleCoefficient(RELEASE_SECONDS, inputAudioFormat.sampleRate)
@@ -47,6 +49,12 @@ class LimiterProcessor(private val liveProfile: LiveAudioProfile) : BaseAudioPro
 
     override fun queueInput(inputBuffer: ByteBuffer) {
         if (!inputBuffer.hasRemaining()) return
+        if (!liveProfile.filmAudioProcessing) {
+            val output = replaceOutputBuffer(inputBuffer.remaining())
+            output.put(inputBuffer)
+            output.flip()
+            return
+        }
         val encoding = inputAudioFormat.encoding
         val sampleBytes = inputAudioFormat.bytesPerFrame / channels
         val start = inputBuffer.position()
@@ -67,6 +75,7 @@ class LimiterProcessor(private val liveProfile: LiveAudioProfile) : BaseAudioPro
     }
 
     override fun onQueueEndOfStream() {
+        if (!liveProfile.filmAudioProcessing) return
         val pendingFrames = lookaheadFrames - 1
         val output = replaceOutputBuffer(pendingFrames * inputAudioFormat.bytesPerFrame)
         val ceiling = currentCeiling()
